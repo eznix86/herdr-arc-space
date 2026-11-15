@@ -24,20 +24,13 @@ files into `~/.config/herdr-app/` and it is live.
 
 ## Features
 
-- **Tabs in a sidebar.** One row per tab. A split tab shows one chip per pane: icon and title for
-  two panes, icons only for three or more.
-- **A colour per space.** A three-layer gradient (two colours, a tint, optional grain). Sidebar text
-  picks its colour by contrast against the gradient.
-- **A theme picker.** A 316x300 colour wheel. Drag a dot and the group turns and scales together;
-  `+` adds a triad. Three presets, an intensity wave, and a noise dial that ticks on a Mac trackpad.
-- **Arc's menus.** Right-click a tab to split, rename or close it. Right-click a space to change its
-  theme, rename it, add a tab or close it.
-- **Tooltips.** Dark teal pills with a teardrop corner and 3D key caps, after 450 ms.
-- **A sidebar that slides.** `cmd+s` animates 240 to 0 in 11 steps. Collapsed, the pane header grows
-  a toggle.
-- **Motion with meaning.** New tabs grow in, closed tabs collapse through a ghost row, and changing
-  space staggers the rows in from the side.
-- **The `cmd+t` bar.** Search tabs and agents, start an agent, or run a command.
+- **Sidebar tabs.** Tabs live in a left sidebar, one row each; a split tab shows one chip per pane.
+- **A colour per space.** Each space gets its own gradient, optional grain, and text coloured to
+  contrast with it.
+- **Theme picker.** Colour wheel, presets, intensity, and a noise dial with haptic ticks.
+- **Arc menus.** Right-click a tab or a space to split, rename, recolour or close.
+- **Collapsing sidebar.** `cmd+s` slides it away and leaves a toggle in the pane header.
+- **Launcher.** `cmd+t` searches tabs and agents, starts an agent, or runs a command.
 
 ## Install
 
