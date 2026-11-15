@@ -327,16 +327,23 @@ export default class TerminalsSide extends View {
     this.hovered = null;
     this.anim = 0;
     this.shift = 0;
+    this.shiftAt = 0;
     this.turn = 0;
     this.entering = new Set();
+    this.enteringAt = 0;
     this.ghosts = [];
     this.jobs = [];
     this.tips = new Tips((ms, fn) => this.later(ms, fn), () => Boolean(shared("arc-space.menu-open")));
     this.out = Boolean(shared("arc-space.collapsed"));
     if (checking()) return;
+    // Drain jobs immediately when any are pending, then wait. Dropping the
+    // resolver before the loop re-arms keeps a `later()` that lands mid-drain
+    // from calling a dead wake(): it would strand its job (and the render it
+    // was meant to fix) forever.
     cx.spawn(async (cx) => {
       for (;;) {
-        await new Promise((wake) => (this.wake = wake));
+        if (!this.jobs.length) await new Promise((wake) => (this.wake = wake));
+        this.wake = null;
         for (const job of this.jobs.splice(0)) {
           cx.timer.after(job.ms, (cx) => {
             job.fn();
@@ -533,10 +540,16 @@ export default class TerminalsSide extends View {
   }
 
   carousel(space, cx) {
+    // Safety net: if a transition's reset job is ever lost, the rows would sit
+    // at opacity 0 (this.shift) or height 0 (this.entering) for good. Neither
+    // may outlive a frame or two, whatever happens to the job queue.
+    if (this.shift && Date.now() - (this.shiftAt ?? 0) > 250) this.shift = 0;
+    if (this.entering.size && Date.now() - (this.enteringAt ?? 0) > 250) this.entering.clear();
     if (this.spaceId && this.spaceId !== space.id) {
       const ids = spaces().map((p) => p.id);
       const dir = ids.indexOf(space.id) > ids.indexOf(this.spaceId) ? 1 : -1;
       this.shift = dir * 28;
+      this.shiftAt = Date.now();
       const at = ++this.turn;
       this.later(16, () => {
         if (this.turn === at) this.shift = 0;
@@ -547,7 +560,7 @@ export default class TerminalsSide extends View {
 
   later(ms, fn) {
     this.jobs.push({ ms, fn });
-    this.wake?.();
+    if (this.wake) this.wake();
   }
 
   track(space, cx) {
@@ -557,6 +570,7 @@ export default class TerminalsSide extends View {
       const gone = this.listIds.filter((id) => !ids.includes(id));
       if (added.length) {
         added.forEach((id) => this.entering.add(id));
+        this.enteringAt = Date.now();
         this.later(16, () => added.forEach((id) => this.entering.delete(id)));
       }
       for (const id of gone) {
