@@ -179,17 +179,14 @@ queue, the layout apply, or the terminal park and keep sequence.
 
 ## Contributing
 
-A public repo with the topic **`herdr-layout`** is the submission to
-[herdr.dev/gallery](https://herdr.dev/gallery). Issues and improvements are welcome here first.
-
-If you fork it, rename the layout and the four mods together. `main.js`, `picker.js`, the layout JSON,
-the keys section and the overlay names all refer to those names.
+Issues and pull requests are welcome. To share a fork, see
+[Herdr's gallery](https://herdr.dev/gallery), which documents how layouts are published.
 
 ## Credits and license
 
-The layout is a clone of Herdr's `terminals` layout and the pane header a clone of its
-`terminals-pane` mod; both keep Herdr's **Apache-2.0** license, as do the `pane` icons copied into
-`mods/arc-space-pane/icons/`. Icons in `mods/arc-space/` are drawn for this build.
+Cloned from Herdr's `terminals` layout and `terminals-pane` mod, so those parts keep Herdr's
+Apache-2.0 license, along with the `pane` icons copied into `mods/arc-space-pane/icons/`. All other
+icons are drawn for this build.
 
 **Apache-2.0**, Copyright 2026 Bruno Bernard. See [LICENSE](LICENSE).
 
