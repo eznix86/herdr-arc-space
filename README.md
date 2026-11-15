@@ -36,14 +36,6 @@ files into `~/.config/herdr-app/` and it is live.
 
 Needs **Herdr 0.1.16 or newer**. Nothing else.
 
-Ask your Herdr agent to add it:
-
-```
-herdr.dev/layouts/eznix86/herdr-arc-space
-```
-
-Or copy it yourself:
-
 ```bash
 git clone https://github.com/eznix86/herdr-arc-space.git
 cd herdr-arc-space
