@@ -88,6 +88,9 @@ export default class Launcher extends View {
     const match = (...words) => !f || words.join(" ").toLowerCase().includes(f);
     const out = [];
     if (match("new terminal shell")) out.push({ kind: "new", name: "New Terminal", icon: svg("icons/shell.svg").size(15).text_color(C.text), bg: C.shell });
+    if (match("split right new terminal")) out.push({ kind: "split", dir: "right", name: "Split Right", icon: svg("mods/terminals-launcher/split-right.svg").size(15).text_color(C.text), bg: C.shell });
+    if (match("split down new terminal")) out.push({ kind: "split", dir: "down", name: "Split Down", icon: svg("mods/terminals-launcher/split-down.svg").size(15).text_color(C.text), bg: C.shell });
+    if (match("new space")) out.push({ kind: "space", name: "New Space", icon: svg("mods/terminals-launcher/plus.svg").size(15).text_color(C.text), bg: C.shell });
     for (const s of spaces()) {
       for (const tab of s.tabs) {
         const mine = all.filter((p) => p.tab === tab.id);
@@ -120,6 +123,11 @@ export default class Launcher extends View {
     const space = spaces().find((s) => s.active);
     this.dismiss();
     if (r.kind === "new") run("tab.new", { space: space?.id });
+    else if (r.kind === "space") {
+      // Start it where the focused pane is, like Herdr's own new space.
+      const cwd = panes().find((p) => p.focused && p.cwd)?.cwd;
+      run("space.new", cwd ? { folder: cwd } : {});
+    } else if (r.kind === "split") run("pane.split", { direction: r.dir });
     else if (r.kind === "agent") run("tab.new", { name: r.agent.name, space: space?.id, argv: r.agent.run });
     else if (r.kind === "pane") {
       if (!r.here) run("space.select", { id: r.space.id });
@@ -137,6 +145,7 @@ export default class Launcher extends View {
         ? r.here ? (r.tab.named ? r.tab.name : "Go to Pane") : r.space.name
         : r.kind === "tab"
           ? r.here ? "Switch to Tab" : r.space.name
+          : r.kind === "split" ? "New Terminal"
           : r.kind === "run" ? "New Tab" : "";
     return h_flex()
       .flex_none()
