@@ -189,7 +189,3 @@ Apache-2.0 license, along with the `pane` icons copied into `mods/arc-space-pane
 icons are drawn for this build.
 
 **Apache-2.0**, Copyright 2026 Bruno Bernard. See [LICENSE](LICENSE).
-
-<div align="center">
-<sub>Last reviewed 2026-11-16 · Herdr 0.1.16 · haptics are macOS only</sub>
-</div>
