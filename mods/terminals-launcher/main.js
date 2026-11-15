@@ -21,6 +21,15 @@ const C = {
 
 const clean = (s) => (s ?? "").replace(/^[^\p{L}\p{N}\p{Ps}\p{Pi}]+/u, "").replace(/^\[ [!.] \] /, "").trim();
 
+function paneTitle(p) {
+  if (p.mod) return p.mod;
+  const live = clean(p.title);
+  const prog = p.program?.name;
+  const telling =
+    live && live !== prog && live.toLowerCase() !== (p.program?.key ?? "").toLowerCase() && !live.includes("@") && !/^[~/]/.test(live);
+  return telling ? live : prog ?? "Terminal";
+}
+
 function tabTitle(tab, p) {
   const prog = p?.program?.name;
   const live = p?.program?.agent ? clean(p.title) : "";
@@ -46,7 +55,7 @@ export default class Launcher extends View {
     this.agents = shared(KNOWN)?.[this.where] ?? [];
     this.filter = "";
     this.at = 0;
-    this.input = InputState.new({ placeholder: "Search tabs or start something…" });
+    this.input = InputState.new({ placeholder: "Search tabs, panes or start something…" });
     this.input.on("change", (_e, cx) => {
       this.filter = this.input.value().trim();
       this.at = 0;
@@ -82,6 +91,16 @@ export default class Launcher extends View {
     for (const s of spaces()) {
       for (const tab of s.tabs) {
         const mine = all.filter((p) => p.tab === tab.id);
+        // A split tab gets one row per pane: the tab row alone hides the panes
+        // that are not focused, so typing their title found nothing.
+        if (mine.length > 1) {
+          for (const p of mine) {
+            const name = paneTitle(p);
+            if (!match(name, tabTitle(tab, p), s.name, p.program?.name ?? "")) continue;
+            out.push({ kind: "pane", name, pane: p, tab, space: s, here: s.id === space?.id, icon: programIcon(p.program), bg: p.program?.tile });
+          }
+          continue;
+        }
         const p = mine.find((q) => q.focused) ?? mine.find((q) => q.program?.agent) ?? mine[0];
         const name = tabTitle(tab, p);
         if (!match(name, s.name, ...mine.map((q) => q.program?.name ?? ""))) continue;
@@ -102,14 +121,23 @@ export default class Launcher extends View {
     this.dismiss();
     if (r.kind === "new") run("tab.new", { space: space?.id });
     else if (r.kind === "agent") run("tab.new", { name: r.agent.name, space: space?.id, argv: r.agent.run });
-    else if (r.kind === "tab") {
+    else if (r.kind === "pane") {
+      if (!r.here) run("space.select", { id: r.space.id });
+      run("tab.select", { id: r.tab.id });
+      run("pane.focus", { pane: r.pane.pane });
+    } else if (r.kind === "tab") {
       if (!r.here) run("space.select", { id: r.space.id });
       run("tab.select", { id: r.tab.id });
     } else if (r.kind === "run") run("tab.new", { space: space?.id, argv: ["sh", "-c", this.filter] });
   }
 
   hint(r, on) {
-    const text = r.kind === "tab" ? (r.here ? "Switch to Tab" : r.space.name) : r.kind === "run" ? "New Tab" : "";
+    const text =
+      r.kind === "pane"
+        ? r.here ? (r.tab.named ? r.tab.name : "Go to Pane") : r.space.name
+        : r.kind === "tab"
+          ? r.here ? "Switch to Tab" : r.space.name
+          : r.kind === "run" ? "New Tab" : "";
     return h_flex()
       .flex_none()
       .gap(12)

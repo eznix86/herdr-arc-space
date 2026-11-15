@@ -30,7 +30,7 @@ files into `~/.config/herdr-app/` and it is live.
 - **Theme picker.** Colour wheel, presets, intensity, and a noise dial with haptic ticks.
 - **Arc menus.** Right-click a tab or a space to split, rename, recolour or close.
 - **Collapsing sidebar.** `cmd+s` slides it away and leaves a toggle in the pane header.
-- **Launcher.** `cmd+t` searches tabs and agents, starts an agent, or runs a command.
+- **Launcher.** `cmd+t` finds any tab or pane, starts an agent, or runs a command.
 
 ## Install
 
