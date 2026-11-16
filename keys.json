@@ -2,6 +2,7 @@
   "layout:arc-space": {
     "cmd-w": "pane.close",
     "cmd-t": "arc-space.launch",
+    "cmd-l": "arc-space.panes",
     "cmd-s": "arc-space.toggle",
     "cmd-1": "arc-space.tab1",
     "cmd-2": "arc-space.tab2",

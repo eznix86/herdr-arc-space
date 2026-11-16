@@ -46,7 +46,7 @@
                   },
                   "focus": {
                     "width": 2,
-                    "color": "#80efa0"
+                    "color": "#98ef80"
                   },
                   "radius": 12,
                   "gap": 8,
@@ -57,10 +57,7 @@
               "shadow": "lg"
             }
           ],
-          "background": {
-            "image": "mods/arc-space/grain/grain-fine-1.png",
-            "fit": "cover"
-          },
+          "background": "#00000000",
           "padding": [
             8,
             8
@@ -79,8 +76,8 @@
   ],
   "background": {
     "gradient": [
-      "#80a38b",
-      "#607a68"
+      "#90c183",
+      "#6c9162"
     ],
     "angle": 165
   },
@@ -104,5 +101,6 @@
   "traffic_lights": [
     16,
     18
-  ]
+  ],
+  "toast": "arc-space-toast"
 }

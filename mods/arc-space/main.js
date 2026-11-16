@@ -132,7 +132,8 @@ function closeButton(id, command, args) {
     .hover((s) => s.bg(C.hover).text_color(C.text))
     .on_click((_e, cx) => {
       cx.stop_propagation();
-      run(command, args);
+      if (command === "tab.close") closeTab(args.id, spaces().find((s) => s.tabs.some((t) => t.id === args.id))?.id);
+      else run(command, args);
     })
     .child(svg("mods/arc-space/close.svg").size(13));
 }
@@ -191,7 +192,7 @@ function tabMenuView() {
       ];
   items.push(rule());
   if (split && pane) items.push(menuItem(overlay, "close-pane", "Close Pane", () => run("pane.close", { pane }), true));
-  items.push(menuItem(overlay, "close-tab", "Close Tab", () => run("tab.close", { id: tab }), true));
+  items.push(menuItem(overlay, "close-tab", "Close Tab", () => closeTab(tab, space), true));
   return menuPanel(items);
 }
 
@@ -268,7 +269,28 @@ function menuView() {
     .child(item("rename", "Rename Space\u2026", () => run("space.rename", { id: space })))
     .child(item("tab", "New Tab", () => run("tab.new", { space })))
     .child(div().h(1).mx(8).my(4).bg("#3a3b40"))
-    .child(item("close", "Close Space", () => run("space.close", { id: space }), true));
+    .child(item("close", "Close Space", () => confirmCloseSpace(space), true));
+}
+
+function confirm(title, detail, label, command) {
+  openOverlay({ mod: "arc-space-confirm", kind: "dialog", frame: "none", width: 400, height: 170, props: { title, detail, confirm: label, command } });
+}
+
+function confirmCloseSpace(spaceId) {
+  const s = spaces().find((p) => p.id === spaceId);
+  const n = s?.tabs.length ?? 0;
+  confirm(
+    `Close “${s?.name ?? "this space"}”?`,
+    `Its ${n === 1 ? "tab" : `${n} tabs`} and every terminal in ${n === 1 ? "it" : "them"} will end.`,
+    "Close Space",
+    { name: "space.close", args: { id: spaceId, confirmed: true } },
+  );
+}
+
+function closeTab(tabId, spaceId) {
+  const s = spaces().find((p) => p.id === spaceId);
+  if (s && s.tabs.length <= 1) confirmCloseSpace(spaceId);
+  else run("tab.close", { id: tabId, confirmed: true });
 }
 
 function editTheme(spaceId) {
@@ -287,6 +309,16 @@ function launch() {
     return;
   }
   openOverlay({ mod: "terminals-launcher", kind: "dialog", frame: "none", width: 720, height: 500 });
+}
+
+function switchPanes() {
+  const open = shared("terminals-launcher.open");
+  if (open && shared("terminals-launcher.mode") === "panes") {
+    setShared("terminals-launcher.step", (shared("terminals-launcher.step") ?? 0) + 1);
+    return;
+  }
+  if (open) closeOverlay(open);
+  openOverlay({ mod: "terminals-launcher", kind: "dialog", frame: "none", width: 720, height: 500, props: { mode: "panes" } });
 }
 
 function row(id) {
@@ -369,6 +401,7 @@ export default class TerminalsSide extends View {
         if (c === "launch") launch();
         else if (c === "toggle") this.toggle(cx);
         else if (c === "palette") openPalette();
+        else if (c === "panes") switchPanes();
         else if (c === "job") this.runJob(cx, shared("arc-space.job"));
 
         else if (c === "theme") editTheme(spaces().find((p) => p.active)?.id);
@@ -707,6 +740,9 @@ export default class TerminalsSide extends View {
     const space = spaces().find((p) => p.active);
     if (!space) return div();
     const th = themeFor(space.id);
+    const now = panes().find((q) => q.focused && space.tabs.some((c) => c.active && c.id === q.tab))?.pane;
+    const recent = shared("arc-space.recent-panes") ?? [];
+    if (now && recent[0] !== now) setShared("arc-space.recent-panes", [now, ...recent.filter((id) => id !== now)].slice(0, 50));
     Object.assign(C, palette(th));
     this.applyTheme(th);
     this.carousel(space, cx);

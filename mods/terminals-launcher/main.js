@@ -4,6 +4,8 @@ import { spaces, panes, knownAgents, run, theme, props, closeOverlay, shared, se
 
 const KNOWN = "new-menu.agents";
 const OPEN = "terminals-launcher.open";
+const MODE = "terminals-launcher.mode";
+const STEP = "terminals-launcher.step";
 const ROW = 48;
 const VISIBLE = 8;
 
@@ -49,13 +51,16 @@ function tile(icon, bg) {
 
 export default class Launcher extends View {
   init(_props, cx) {
-    if (props()?.overlay) if (props()?.overlay) setShared(OPEN, props().overlay);
+    if (props()?.overlay) setShared(OPEN, props().overlay);
+    this.mode = props()?.mode === "panes" ? "panes" : "all";
+    if (props()?.overlay) setShared(MODE, this.mode);
+    this.step = shared(STEP) ?? 0;
     const space = spaces().find((s) => s.active);
     this.where = space?.machine ?? "";
     this.agents = shared(KNOWN)?.[this.where] ?? [];
     this.filter = "";
-    this.at = 0;
-    this.input = InputState.new({ placeholder: "Search tabs, panes or start something…" });
+    this.at = this.mode === "panes" && this.paneRows().length > 1 ? 1 : 0;
+    this.input = InputState.new({ placeholder: this.mode === "panes" ? "Switch to a pane" : "Search tabs, panes or start something" });
     this.input.on("change", (_e, cx) => {
       this.filter = this.input.value().trim();
       this.at = 0;
@@ -78,10 +83,37 @@ export default class Launcher extends View {
   }
 
   async close() {
-    if (shared(OPEN) === props()?.overlay) setShared(OPEN, null);
+    if (shared(OPEN) === props()?.overlay) {
+      setShared(OPEN, null);
+      setShared(MODE, null);
+    }
+  }
+
+  paneRows() {
+    const space = spaces().find((s) => s.active);
+    const recent = shared("arc-space.recent-panes") ?? [];
+    const rank = (p) => {
+      const i = recent.indexOf(p.pane);
+      return i < 0 ? 1e6 : i;
+    };
+    const f = this.filter.toLowerCase();
+    const out = [];
+    for (const s of spaces()) {
+      for (const tab of s.tabs) {
+        for (const p of panes().filter((q) => q.tab === tab.id)) {
+          const name = paneTitle(p);
+          const where = tabTitle(tab, p);
+          if (f && ![name, where, s.name, p.program?.name ?? "", p.cwd ?? ""].join(" ").toLowerCase().includes(f)) continue;
+          const current = Boolean(p.focused && tab.active && s.id === space?.id);
+          out.push({ kind: "pane", name, pane: p, tab, space: s, here: s.id === space?.id, current, icon: programIcon(p.program), bg: p.program?.tile });
+        }
+      }
+    }
+    return out.sort((a, b) => b.current - a.current || rank(a.pane) - rank(b.pane));
   }
 
   rows() {
+    if (this.mode === "panes") return this.paneRows();
     const space = spaces().find((s) => s.active);
     const all = panes();
     const f = this.filter.toLowerCase();
@@ -141,7 +173,9 @@ export default class Launcher extends View {
 
   hint(r, on) {
     const text =
-      r.kind === "pane"
+      r.kind === "pane" && this.mode === "panes"
+        ? r.current ? "Current" : r.here ? "Switch to Pane" : r.space.name
+        : r.kind === "pane"
         ? r.here ? (r.tab.named ? r.tab.name : "Go to Pane") : r.space.name
         : r.kind === "tab"
           ? r.here ? "Switch to Tab" : r.space.name
@@ -168,6 +202,11 @@ export default class Launcher extends View {
 
   render() {
     const rows = this.rows();
+    const step = shared(STEP) ?? 0;
+    if (step !== this.step) {
+      this.at = (this.at + (step - this.step)) % Math.max(1, rows.length);
+      this.step = step;
+    }
     this.at = Math.max(0, Math.min(this.at, rows.length - 1));
     const first = Math.max(0, Math.min(this.at - VISIBLE + 1, rows.length - VISIBLE));
     const shown = rows.slice(first, first + VISIBLE);
@@ -195,7 +234,7 @@ export default class Launcher extends View {
           .px(22)
           .gap(14)
           .items_center()
-          .child(svg("mods/terminals-launcher/search.svg").size(20).text_color(C.text))
+          .child(svg(this.mode === "panes" ? "mods/terminals-launcher/split-right.svg" : "mods/terminals-launcher/search.svg").size(20).text_color(C.text))
           .child(Input.new(this.input).flex_1().h_full().text_size(22).text_color(C.text)),
       )
       .child(div().h(1).mx(12).bg(C.rule))
