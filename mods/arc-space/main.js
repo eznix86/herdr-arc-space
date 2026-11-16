@@ -1,9 +1,9 @@
 import { View, div, svg, image } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
-import * as fs from "fs/promises";
 import { spaces, panes, run, theme, home, appHome, openOverlay, nextCommand, checking, settings, shared, setShared, props, readTextFile, closeOverlay, exec, window as win } from "herdr";
 import { Picker } from "./picker.js";
 import { Tips } from "./tip.js";
+import { snapshot, recordClosed, reopenLast } from "./reopen.js";
 import { themeFor, palette, apply, backgrounds, find } from "./theme.js";
 
 const C = {
@@ -384,6 +384,7 @@ export default class TerminalsSide extends View {
         }
       }
     });
+    cx.timer.every(1500, () => this.watchClosed());
     cx.spawn(async () => {
       for (;;) {
         await new Promise((wake) => (this.themeWake = wake));
@@ -402,6 +403,7 @@ export default class TerminalsSide extends View {
         else if (c === "toggle") this.toggle(cx);
         else if (c === "palette") openPalette();
         else if (c === "panes") switchPanes();
+        else if (c === "reopen") cx.spawn(async () => reopenLast());
         else if (c === "job") this.runJob(cx, shared("arc-space.job"));
 
         else if (c === "theme") editTheme(spaces().find((p) => p.active)?.id);
@@ -591,6 +593,12 @@ export default class TerminalsSide extends View {
     this.spaceId = space.id;
   }
 
+  watchClosed() {
+    const snap = snapshot();
+    if (this.snap) recordClosed(this.snap, snap);
+    this.snap = snap;
+  }
+
   later(ms, fn) {
     this.jobs.push({ ms, fn });
     if (this.wake) this.wake();
@@ -607,7 +615,7 @@ export default class TerminalsSide extends View {
         this.later(16, () => added.forEach((id) => this.entering.delete(id)));
       }
       for (const id of gone) {
-        const ghost = { id, at: this.listIds.indexOf(id), h: this.heights?.[id] ?? 38, closing: false };
+        const ghost = { id, at: this.listIds.indexOf(id), h: this.heights?.[id] ?? 38, closing: false, born: Date.now() };
         this.ghosts.push(ghost);
         this.later(16, () => (ghost.closing = true));
         this.later(FAST + 40, () => (this.ghosts = this.ghosts.filter((g) => g !== ghost)));
@@ -641,6 +649,7 @@ export default class TerminalsSide extends View {
       this.heights[c.id] = h;
       return this.stagger(div().id(`tm-w-${c.id}`).overflow_hidden(), i + 1, c.id, h).child(this.tab(t, all, space, c, i));
     });
+    this.ghosts = this.ghosts.filter((g) => Date.now() - g.born < FAST + 170);
     for (const g of [...this.ghosts].sort((a, b) => a.at - b.at)) {
       rows.splice(Math.min(g.at, rows.length), 0,
         div().id(`tm-g-${g.id}`).flex_none().h(g.closing ? 0 : g.h).transition("height", { duration: FAST, easing: "ease-out" }));
@@ -747,6 +756,7 @@ export default class TerminalsSide extends View {
     this.applyTheme(th);
     this.carousel(space, cx);
     this.track(space, cx);
+    if (!checking()) this.watchClosed();
     const all = panes();
     const w = win() ?? {};
     const mac = w.platform === "macos" && w.titlebar === "none" && !w.fullscreen;

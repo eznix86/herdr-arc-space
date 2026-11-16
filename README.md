@@ -67,6 +67,7 @@ Keys live in `layout:arc-space`, so other layouts keep their own.
 |---|---|
 | `cmd+t` | Toggle the launcher |
 | `cmd+l` | Pane switcher, cycling through panes by recent focus |
+| `cmd+shift+t` | Reopen the last closed tab or pane |
 | `cmd+shift+p` | Command palette |
 | `cmd+s` | Collapse or expand the sidebar |
 | `cmd+w` | Close the focused pane (not the tab) |
@@ -111,7 +112,7 @@ Editing a theme calls `layout.set`, so a theme change rewrites `layouts/arc-spac
 | Path | What it is |
 |---|---|
 | `layouts/arc-space.json` | The window: gradient, `tint`, an optional `grain` layer, then `sidebar` (240px) and `main` (the active tab). Cloned from the shipped `terminals` layout. |
-| `mods/arc-space/` | Sidebar and its menus: `main.js`, `theme.js`, `picker.js`, `tip.js`, `dial/`, `grain/`, `bin/haptic`. |
+| `mods/arc-space/` | Sidebar and its menus: `main.js`, `theme.js`, `picker.js`, `tip.js`, `reopen.js` (closed tabs and panes), `dial/`, `grain/`, `bin/haptic`. |
 | `mods/arc-space-confirm/` | The dialog that confirms closing a space, or a tab's last pane. |
 | `mods/arc-space-toast/` | Notifications, chosen by the layout's `toast` field. |
 | `mods/arc-space-pane/` | Pane header: icon, title, split, zoom, close, and the collapse toggle. Cloned from `terminals-pane`. |

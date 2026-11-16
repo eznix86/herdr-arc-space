@@ -22,6 +22,7 @@
     "ctrl-7": "arc-space.space7",
     "ctrl-8": "arc-space.space8",
     "ctrl-9": "arc-space.space9",
-    "cmd-shift-p": "arc-space.palette"
+    "cmd-shift-p": "arc-space.palette",
+    "cmd-shift-t": "arc-space.reopen"
   }
 }

@@ -57,7 +57,10 @@
               "shadow": "lg"
             }
           ],
-          "background": "#00000000",
+          "background": {
+            "image": "mods/arc-space/grain/grain-fine-1.png",
+            "fit": "cover"
+          },
           "padding": [
             8,
             8
