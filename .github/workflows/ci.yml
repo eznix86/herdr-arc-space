@@ -1,0 +1,21 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      # Pure colour/state maths and the repository guards.
+      - run: node --test test/
+      - run: node scripts/verify.mjs
+
+      # scripts/check.sh stays local: it runs `herdr-app check` and
+      # `herdr-app status`, and Herdr is a desktop app that does not run on CI.

@@ -1,0 +1,9 @@
+{
+  "name": "herdr-arc-space",
+  "private": true,
+  "type": "module",
+  "description": "Arc Space: a layout and mods for the Herdr desktop app.",
+  "scripts": {
+    "test": "node --test test/"
+  }
+}

@@ -27,12 +27,12 @@ a push, and this file ticked.
   `main.js`.
 - [x] **`lib/herdr.js`, `lib/jobqueue.js`.** Extract the `exec("herdr-app", ...)` helper and the
   job pump. Target: `main.js` under 300 lines.
-- [ ] **Tests.** `node --test` over the pure modules: `hexToHsl`, `contrast`, `palette`,
+- [x] **Tests.** `node --test` over the pure modules: `hexToHsl`, `contrast`, `palette`,
   `backgrounds` (including the 0.02 grain threshold) and the shared-key names.
-- [ ] **`scripts/verify.mjs`.** JSON lint for layouts, keys and `mod.json`; asset references exist;
+- [x] **`scripts/verify.mjs`.** JSON lint for layouts, keys and `mod.json`; asset references exist;
   no `/Users/`, no committed `gpui-kit.d.ts`, no `backgrounds/` paths. Plus `scripts/check.sh` for
   the local `herdr-app check` loop.
-- [ ] **CI.** GitHub Actions: `node --test` and `scripts/verify.mjs` on push and pull request.
+- [x] **CI.** GitHub Actions: `node --test` and `scripts/verify.mjs` on push and pull request.
 
 ## Phase 3, performance and packaging
 
