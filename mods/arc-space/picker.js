@@ -1,8 +1,8 @@
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import * as fs from "fs/promises";
-import { props, closeOverlay, exec, appHome, checking, window } from "herdr";
-import { PRESET_SETS, MAX_DOTS, themeFor, saveTheme, hexToHsl, radiusOf, moveDots, isDark, colors } from "./theme.js";
+import { props, closeOverlay, exec, appHome, checking, window, theme } from "herdr";
+import { PRESET_SETS, MAX_DOTS, themeFor, saveTheme, hexToHsl, radiusOf, moveDots, colors } from "./theme.js";
 
 const PAD_W = 316;
 const PAD_H = 300;
@@ -127,12 +127,15 @@ export class Picker {
 
   render() {
     const th = this.theme;
-    const dark = isDark(th);
     const cs = colors(th);
-    const ink = dark ? "#f2f3f5" : "#1b1c20";
-    const faint = dark ? "#ffffff70" : "#00000066";
-    const panel = dark ? "#2a2b2f" : "#f4f2ef";
-    const well = dark ? "#ffffff0d" : "#0000000a";
+    // The picker is a Herdr popover, so its surface and the text on it come from
+    // Herdr's theme. Only what illustrates the space (the dots, the preset
+    // swatches) comes from the space's own colours.
+    const t = theme();
+    const ink = t.foreground;
+    const faint = t.muted;
+    const panel = t.popover;
+    const well = t.raised;
     const empty = th.dots.length === 0;
 
     const mode = (name, value) =>
@@ -146,7 +149,7 @@ export class Picker {
         .justify_center()
         .cursor_pointer()
         .text_color(th.mode === value ? ink : faint)
-        .when(th.mode === value, (el) => el.bg(dark ? "#ffffff1f" : "#0000000f"))
+        .when(th.mode === value, (el) => el.bg(t.hover))
         .hover((s) => s.text_color(ink))
         .on_click((_e, cx) => {
           this.page = { light: 0, auto: 1, dark: 2 }[value];
@@ -168,7 +171,7 @@ export class Picker {
         .h(size)
         .rounded_full()
         .border(i === 0 ? 5 : 4)
-        .border_color("#ffffff")
+        .border_color(panel)
         .shadow_md()
         .bg(cs[i]);
     });
@@ -226,10 +229,10 @@ export class Picker {
             .h(26)
             .rounded_full()
             .border_2()
-            .border_color(dark ? "#ffffff26" : "#00000014")
+            .border_color(t.border)
             .bg(hex)
             .cursor_pointer()
-            .hover((s) => s.border_color("#ffffff"))
+            .hover((s) => s.border_color(ink))
             .on_click((_e, cx) => this.preset(cx, hex)),
         ),
       )
@@ -249,11 +252,11 @@ export class Picker {
         this.moveSlider(cx, this.local(e));
       })
       .child(div().absolute().left(0).right(0).top(20).h(16).rounded_full().bg(well))
-      .child(icon(wave, TRACK_W).absolute().left(0).top(8).w(TRACK_W).h(40).text_color(dark ? "#ffffff38" : "#00000033"))
+      .child(icon(wave, TRACK_W).absolute().left(0).top(8).w(TRACK_W).h(40).text_color(t.border))
       .when(!empty, (el) =>
         el
-          .child(div().absolute().left(0).top(8).w(x).h(40).overflow_hidden().child(icon(wave, TRACK_W).w(TRACK_W).h(40).text_color(dark ? "#ffffffcc" : "#000000aa")))
-          .child(div().absolute().top(3).left(clamp(x - 12, 0, TRACK_W - 24)).w(24).h(50).rounded(12).bg("#ffffff").shadow_md()),
+          .child(div().absolute().left(0).top(8).w(x).h(40).overflow_hidden().child(icon(wave, TRACK_W).w(TRACK_W).h(40).text_color(ink)))
+          .child(div().absolute().top(3).left(clamp(x - 12, 0, TRACK_W - 24)).w(24).h(50).rounded(12).bg(ink).shadow_md()),
       );
 
     const lit = empty ? -1 : this.step;
@@ -288,12 +291,12 @@ export class Picker {
           .w(50)
           .h(50)
           .rounded_full()
-          .bg(dark ? "#232326" : "#dcd8d2")
+          .bg(t.raised)
           .border_1()
-          .border_color(dark ? "#ffffff1f" : "#00000014")
+          .border_color(t.border)
           .shadow_md(),
       )
-      .when(!empty, (el) => el.child(svg(`mods/arc-space/dial/${this.step % STEPS}.svg`).absolute().left(-1).top(-1).w(DIAL + 2).h(DIAL + 2).text_color("#ffffff")));
+      .when(!empty, (el) => el.child(svg(`mods/arc-space/dial/${this.step % STEPS}.svg`).absolute().left(-1).top(-1).w(DIAL + 2).h(DIAL + 2).text_color(ink)));
 
     return v_flex()
       .id("theme-picker")
@@ -302,7 +305,7 @@ export class Picker {
       .gap(14)
       .rounded(16)
       .border_1()
-      .border_color(dark ? "#3a3b40" : "#d9d5cf")
+      .border_color(t.border)
       .bg(panel)
       .shadow_lg()
       .on_mouse_move((e, cx) => this.move(e, cx))
@@ -322,7 +325,7 @@ export class Picker {
           .rounded(16)
           .overflow_hidden()
           .bg(well)
-          .child(svg("mods/arc-space/pad-dots.svg").absolute().left(0).top(0).right(0).bottom(0).text_color(dark ? "#ffffff29" : "#00000029"))
+          .child(svg("mods/arc-space/pad-dots.svg").absolute().left(0).top(0).right(0).bottom(0).text_color(t.border))
           .child(h_flex().gap(10).child(mode("sparkles", "auto")).child(mode("sun", "light")).child(mode("moon", "dark")))
           .child(pad)
           .child(plusMinus),

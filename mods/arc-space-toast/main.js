@@ -2,11 +2,11 @@ import { View, div, image } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { props, closeOverlay, run, theme } from "herdr";
 
-const C = { panel: "#2a2b2f", edge: "#3a3b40", text: "#ecedef", dim: "#8e9097", hover: "#33343a", chip: "#ffffff14" };
 const DOT = { error: "blocked", warning: "working", success: "done", info: "accent" };
 
 export default class Toast extends View {
   render() {
+    // A toast is a Herdr surface: its panel and the text on it are theme colours.
     const t = theme();
     const p = props() ?? {};
     const login = /^([a-z0-9][a-z0-9_.-]{0,31}) needs login; run hc machine login \1$/.exec(p.body ?? "");
@@ -22,29 +22,29 @@ export default class Toast extends View {
       .items_center()
       .rounded(12)
       .border_1()
-      .border_color(C.edge)
-      .bg(C.panel)
+      .border_color(t.border)
+      .bg(t.popover)
       .shadow_lg()
       .cursor_pointer()
-      .hover((s) => s.bg(C.hover))
+      .hover((s) => s.bg(t.hover))
       .on_click(() => {
         if (p.action?.name) run(p.action.name, p.action.args ?? {});
         closeOverlay(p.overlay);
       })
-      .child(div().flex_none().w(30).h(30).rounded(8).bg(C.chip).flex().items_center().justify_center().child(mark))
+      .child(div().flex_none().w(30).h(30).rounded(8).bg(t.raised).flex().items_center().justify_center().child(mark))
       .child(
         v_flex()
           .flex_1()
           .min_w(0)
           .gap(1)
-          .child(div().truncate().font_semibold().text_size(13.5).text_color(C.text).child(login ? `${login[1]} needs a login: run` : p.title ?? ""))
-          .when(!login && Boolean(p.body), (el) => el.child(div().truncate().text_size(12.5).text_color(C.dim).child(p.body ?? "")))
+          .child(div().truncate().font_semibold().text_size(13.5).text_color(t.foreground).child(login ? `${login[1]} needs a login: run` : p.title ?? ""))
+          .when(!login && Boolean(p.body), (el) => el.child(div().truncate().text_size(12.5).text_color(t.muted).child(p.body ?? "")))
           .when(Boolean(login), (el) =>
             el.child(
               h_flex()
                 .gap(8)
                 .items_center()
-                .child(div().flex_1().min_w(0).truncate().text_size(12.5).text_color(C.dim).child(command))
+                .child(div().flex_1().min_w(0).truncate().text_size(12.5).text_color(t.muted).child(command))
                 .child(
                   div()
                     .id("toast-login-copy")
@@ -52,11 +52,11 @@ export default class Toast extends View {
                     .px(8)
                     .py(3)
                     .rounded(6)
-                    .bg(C.chip)
+                    .bg(t.raised)
                     .text_size(12)
-                    .text_color(C.text)
+                    .text_color(t.foreground)
                     .cursor_pointer()
-                    .hover((s) => s.bg("#41677b"))
+                    .hover((s) => s.bg(t.hover))
                     .on_click((_e, cx) => {
                       cx.stop_propagation();
                       cx.write_to_clipboard(command);
@@ -68,10 +68,10 @@ export default class Toast extends View {
             ),
           ),
       )
-      .when(Boolean(p.action?.name), (el) => el.child(svgArrow()));
+      .when(Boolean(p.action?.name), (el) => el.child(svgArrow(t)));
   }
 }
 
-function svgArrow() {
-  return div().flex_none().w(26).h(26).rounded(7).bg(C.chip).flex().items_center().justify_center().text_color(C.dim).child("›");
+function svgArrow(t) {
+  return div().flex_none().w(26).h(26).rounded(7).bg(t.raised).flex().items_center().justify_center().text_color(t.muted).child("›");
 }

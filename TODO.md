@@ -10,6 +10,7 @@ a push, and this file ticked.
 
 - [x] **Menus follow the theme.** `mods/arc-space/main.js` hardcodes `#3a3b40` and `#2a2b2f` in
   `menuPanel`, so context menus stay dark on a light theme. Use the palette instead.
+- [x] **Menu text follows the surface.**
 - [x] **Palette per instance.** `C` is module-level and mutated in `render` by
   `Object.assign(C, palette(th))`, so every mod copy (sidebar, menus, picker) shares one object.
   Two spaces with different hues can paint each other. Make it per instance and pass it down.

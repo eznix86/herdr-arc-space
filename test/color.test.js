@@ -32,6 +32,16 @@ test("textOn picks the readable text", () => {
   assert.equal(textOn(["#121216", "#1c1a22"]), "light");
 });
 
+test("menu text must contrast with the surface it sits on", () => {
+  // The bug this locks out: palette()'s dark text (chosen for a light space
+  // gradient) drawn on Herdr's dark popover is unreadable.
+  assert.ok(contrast("#1b1c20", "#2a2b2f") < 4.5);
+
+  // theme()'s own pairs: dark popover with light text, light popover with dark.
+  assert.ok(contrast("#ecedef", "#2a2b2f") >= 4.5);
+  assert.ok(contrast("#1b1c20", "#f4f2ef") >= 4.5);
+});
+
 test("backgrounds keeps grain above the 0.02 threshold", () => {
   const grainOf = (noise) => backgrounds({ ...DEFAULT, noise }).grain;
 

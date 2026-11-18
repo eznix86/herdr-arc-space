@@ -1,8 +1,8 @@
 import { View, div } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
-import { run, props, closeOverlay } from "herdr";
+import { run, props, closeOverlay, theme } from "herdr";
 
-const C = { panel: "#2a2b2f", edge: "#3a3b40", text: "#ecedef", dim: "#8e9097", chip: "#ffffff14", danger: "#e5534b", dangerHover: "#f0675f" };
+const DANGER = { bg: "#e5534b", hover: "#f0675f", text: "#ffffff" };
 
 export default class Confirm extends View {
   init(_props, cx) {
@@ -18,6 +18,8 @@ export default class Confirm extends View {
 
   render() {
     const p = props() ?? {};
+    // A Herdr dialog: its surface and the text on it are Herdr's theme colours.
+    const t = theme();
     const button = (id, label, bg, hover, fg, onClick) =>
       h_flex()
         .id(id)
@@ -48,17 +50,17 @@ export default class Confirm extends View {
       .gap(10)
       .rounded(16)
       .border_1()
-      .border_color(C.edge)
-      .bg(C.panel)
+      .border_color(t.border)
+      .bg(t.popover)
       .shadow_lg()
-      .child(div().text_size(17).font_semibold().text_color(C.text).child(p.title ?? "Are you sure?"))
-      .child(div().flex_1().min_h(0).text_size(13.5).text_color(C.dim).child(p.detail ?? ""))
+      .child(div().text_size(17).font_semibold().text_color(t.foreground).child(p.title ?? "Are you sure?"))
+      .child(div().flex_1().min_h(0).text_size(13.5).text_color(t.muted).child(p.detail ?? ""))
       .child(
         h_flex()
           .justify_end()
           .gap(8)
-          .child(button("no", "Cancel", C.chip, "#ffffff22", C.text, () => closeOverlay(props().overlay)))
-          .child(button("yes", p.confirm ?? "Close", C.danger, C.dangerHover, "#ffffff", () => this.yes())),
+          .child(button("no", "Cancel", t.raised, t.hover, t.foreground, () => closeOverlay(props().overlay)))
+          .child(button("yes", p.confirm ?? "Close", DANGER.bg, DANGER.hover, DANGER.text, () => this.yes())),
       );
   }
 }
