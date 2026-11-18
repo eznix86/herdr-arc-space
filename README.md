@@ -132,7 +132,7 @@ renaming those ids is not.
 - `exec("herdr-app", ["do", ...])` in a few places that need a command's reply.
 
 Everything else is Herdr's own commands. Arc Space writes only inside `~/.config/herdr-app/` and makes
-no network calls. The grain comes from Arc.app's `grain` asset; the pane icons are copies of Herdr's.
+no network calls. The grain tiles are made by `node scripts/grain.mjs`; the pane icons are copies of Herdr's.
 
 ## Troubleshooting
 

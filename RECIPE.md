@@ -105,7 +105,8 @@ Type is 15px in the panes (JetBrains Mono by default); panels are 12–13px.
   background layers, focus colour), `picker.js` (wheel, presets, wave, dial),
   `tip.js` (tooltips), `dial/0..23.svg` (handles) and `dial/wave-0..10.svg`
   (the intensity wave), `grain/grain-fine-1..5.png` (noise tiles, 1512×950,
-  pre-tiled from Arc's 500×500 tile because Herdr cannot tile images),
+  a 500×500 tile repeated because Herdr cannot tile images, made by
+  `scripts/grain.mjs`),
   `bin/haptic` + `bin/haptic.swift`.
 - **`mods/arc-space-pane/`** — the pane header, cloned from `terminals-pane`;
   adds the tooltips and the collapsed-sidebar toggle. `icons/*.svg` are copies
@@ -128,8 +129,9 @@ Type is 15px in the panes (JetBrains Mono by default); panels are 12–13px.
   It also calls back into the app with `exec("herdr-app", ["do", …])` because
   `run()` cannot return a reply.
 - **Art:** all icons in `mods/arc-space/*.svg` are flat singles drawn for this
-  build; the grain tiles come from Arc's own `grain` asset
-  (`/Applications/Arc.app/Contents/Resources/ARC_AskArc.bundle`).
+  build; the grain tiles are made by `node scripts/grain.mjs`: seeded white
+  noise, white pixels whose alpha is a normal draw (mean 0.909, sd 0.318 of
+  the level's peak, clipped), peaks 20/35/51/71/91 for levels 1..5.
 
 ## Watch out
 
@@ -163,8 +165,7 @@ Type is 15px in the panes (JetBrains Mono by default); panels are 12–13px.
 - **Controls that do nothing yet:** `⌘`-hold number badges are drawn, but it is
   unverified whether the sidebar receives modifier events while a terminal has
   focus. The palette's `⌘T` hint is stale: `cmd+t` opens the launcher here.
-- **Assumes:** macOS for the haptic ticks (elsewhere they are skipped);
-  Arc installed only if you want to regenerate the grain tiles.
+- **Assumes:** macOS for the haptic ticks (elsewhere they are skipped).
 
 ## Done when
 
