@@ -14,7 +14,7 @@ jobs:
           node-version: 24
 
       # Pure colour/state maths and the repository guards.
-      - run: node --test test/
+      - run: node --test
       - run: node scripts/verify.mjs
 
       # scripts/check.sh stays local: it runs `herdr-app check` and
