@@ -6,20 +6,6 @@ import { Tips } from "./tip.js";
 import { snapshot, recordClosed, reopenLast } from "./reopen.js";
 import { themeFor, palette, apply, backgrounds, find } from "./theme.js";
 
-const C = {
-  selected: "#ffffff24",
-  selectedEdge: "#ffffff1f",
-  split: "#ffffff0f",
-  chip: "#ffffff0a",
-  hover: "#ffffff0d",
-  rule: "#ffffff14",
-  text: "#e8e9eb",
-  soft: "#c4c6ca",
-  dim: "#8b8f95",
-  dot: "#131619",
-  pressed: "#00000033",
-};
-
 function folder(cwd) {
   if (!cwd) return "";
   const h = home();
@@ -52,7 +38,7 @@ function paneLabel(p) {
   return liveTitle(p) || p.program?.name || folder(p.cwd).split("/").pop() || "Terminal";
 }
 
-function tile(t, p) {
+function tile(t, p, C) {
   const g = p?.program;
   const dot = p?.status && p.status !== "idle" ? t[p.status] : null;
   return div()
@@ -73,7 +59,7 @@ function tile(t, p) {
     );
 }
 
-function badge(n) {
+function badge(n, C) {
   return div()
     .flex_none()
     .px(5)
@@ -91,7 +77,7 @@ function own(el) {
   return el.on_mouse_down("left", (_e, cx) => cx.stop_propagation()).on_mouse_down("right", (_e, cx) => cx.stop_propagation());
 }
 
-function windowButton(id, icon, command) {
+function windowButton(id, icon, command, C) {
   return own(div())
     .id(id)
     .flex_none()
@@ -108,7 +94,7 @@ function windowButton(id, icon, command) {
     .child(svg(`mods/arc-space/${icon}.svg`).size(14));
 }
 
-function iconButton(id, icon, onClick) {
+function iconButton(id, icon, onClick, C) {
   return own(div())
     .id(id)
     .flex_none()
@@ -121,7 +107,7 @@ function iconButton(id, icon, onClick) {
     .child(svg(`mods/arc-space/${icon}.svg`).size(16));
 }
 
-function closeButton(id, command, args) {
+function closeButton(id, command, args, C) {
   return own(div())
     .id(id)
     .flex_none()
@@ -153,11 +139,11 @@ function job(spec) {
   run("arc-space.job");
 }
 
-function menuPanel(items) {
-  return v_flex().id("ctx-menu").w_full().p(6).gap(1).rounded(12).border_1().border_color("#3a3b40").bg("#2a2b2f").shadow_lg().children(items);
+function menuPanel(items, C) {
+  return v_flex().id("ctx-menu").w_full().p(6).gap(1).rounded(12).border_1().border_color(C.edge).bg(C.panel).shadow_lg().children(items);
 }
 
-function menuItem(overlay, id, label, action, danger) {
+function menuItem(overlay, id, label, action, danger, C) {
   return div()
     .id(`mn-${id}`)
     .h(34)
@@ -167,8 +153,8 @@ function menuItem(overlay, id, label, action, danger) {
     .rounded(8)
     .cursor_pointer()
     .text_size(13.5)
-    .text_color(danger ? "#ff8a80" : "#ecedef")
-    .hover((s) => s.bg("#41677b").text_color("#ffffff"))
+    .text_color(danger ? "#ff8a80" : C.text)
+    .hover((s) => s.bg(C.hover).text_color(C.text))
     .on_click(() => {
       closeOverlay(overlay);
       action();
@@ -176,29 +162,31 @@ function menuItem(overlay, id, label, action, danger) {
     .child(label);
 }
 
-function rule() {
-  return div().h(1).mx(8).my(4).bg("#3a3b40");
+function rule(C) {
+  return div().h(1).mx(8).my(4).bg(C.edge);
 }
 
 function tabMenuView() {
   const { tab, space, pane, split, overlay } = props();
+  const C = palette(themeFor(space));
   const items = split
-    ? [menuItem(overlay, "separate", "Separate All Tabs", () => job({ kind: "separate", tab }))]
+    ? [menuItem(overlay, "separate", "Separate All Tabs", () => job({ kind: "separate", tab }), false, C)]
     : [
         menuItem(overlay, "add-split", "Add Split Terminal\u2026", () =>
-          openOverlay({ mod: "arc-space", kind: "popup", width: 280, height: 360, frame: "none", props: { view: "tab-pick", tab, space } }),
+          openOverlay({ mod: "arc-space", kind: "popup", width: 280, height: 360, frame: "none", props: { view: "tab-pick", tab, space } }), false, C,
         ),
-        menuItem(overlay, "rename", "Rename Tab\u2026", () => run("tab.rename", { id: tab })),
+        menuItem(overlay, "rename", "Rename Tab\u2026", () => run("tab.rename", { id: tab }), false, C),
       ];
-  items.push(rule());
-  if (split && pane) items.push(menuItem(overlay, "close-pane", "Close Pane", () => run("pane.close", { pane }), true));
-  items.push(menuItem(overlay, "close-tab", "Close Tab", () => closeTab(tab, space), true));
-  return menuPanel(items);
+  items.push(rule(C));
+  if (split && pane) items.push(menuItem(overlay, "close-pane", "Close Pane", () => run("pane.close", { pane }), true, C));
+  items.push(menuItem(overlay, "close-tab", "Close Tab", () => closeTab(tab, space), true, C));
+  return menuPanel(items, C);
 }
 
 function tabPickView() {
   const { tab, space, overlay } = props();
   const t = theme();
+  const C = palette(themeFor(space));
   const all = panes();
   const others = (spaces().find((p) => p.id === space)?.tabs ?? []).filter((c) => c.id !== tab);
   const rows = others.map((c) => {
@@ -214,20 +202,20 @@ function tabPickView() {
       .rounded(8)
       .cursor_pointer()
       .text_size(13.5)
-      .text_color("#ecedef")
-      .hover((s) => s.bg("#41677b").text_color("#ffffff"))
+      .text_color(C.text)
+      .hover((s) => s.bg(C.hover).text_color(C.text))
       .on_click(() => {
         closeOverlay(overlay);
         job({ kind: "merge", into: tab, from: c.id });
       })
-      .child(tile(t, p))
+      .child(tile(t, p, C))
       .child(div().flex_1().min_w(0).truncate().child(label(c, p)))
-      .when(mine.length > 1, (el) => el.child(div().text_size(11.5).text_color("#8e9097").child(`${mine.length} panes`)));
+      .when(mine.length > 1, (el) => el.child(div().text_size(11.5).text_color(C.dim).child(`${mine.length} panes`)));
   });
   return menuPanel([
-    div().px(12).pt(6).pb(4).text_size(11).font_semibold().text_color("#8e9097").child("SPLIT WITH"),
-    ...(rows.length ? rows : [div().px(12).py(8).text_size(13).text_color("#8e9097").child("No other tabs in this space")]),
-  ]);
+    div().px(12).pt(6).pb(4).text_size(11).font_semibold().text_color(C.dim).child("SPLIT WITH"),
+    ...(rows.length ? rows : [div().px(12).py(8).text_size(13).text_color(C.dim).child("No other tabs in this space")]),
+  ], C);
 }
 
 const pause = (later, ms) => new Promise((done) => later(ms, done));
@@ -238,6 +226,7 @@ function spaceMenu(spaceId) {
 
 function menuView() {
   const { space, overlay } = props();
+  const C = palette(themeFor(space));
   const item = (id, label, action, danger) =>
     div()
       .id(`mn-${id}`)
@@ -248,8 +237,8 @@ function menuView() {
       .rounded(8)
       .cursor_pointer()
       .text_size(13.5)
-      .text_color(danger ? "#ff8a80" : "#ecedef")
-      .hover((s) => s.bg("#41677b").text_color("#ffffff"))
+      .text_color(danger ? "#ff8a80" : C.text)
+      .hover((s) => s.bg(C.hover).text_color(C.text))
       .on_click(() => {
         closeOverlay(overlay);
         action();
@@ -262,13 +251,13 @@ function menuView() {
     .gap(1)
     .rounded(12)
     .border_1()
-    .border_color("#3a3b40")
-    .bg("#2a2b2f")
+    .border_color(C.edge)
+    .bg(C.panel)
     .shadow_lg()
     .child(item("theme", "Edit Theme Color\u2026", () => editTheme(space)))
     .child(item("rename", "Rename Space\u2026", () => run("space.rename", { id: space })))
     .child(item("tab", "New Tab", () => run("tab.new", { space })))
-    .child(div().h(1).mx(8).my(4).bg("#3a3b40"))
+    .child(div().h(1).mx(8).my(4).bg(C.edge))
     .child(item("close", "Close Space", () => confirmCloseSpace(space), true));
 }
 
@@ -321,7 +310,7 @@ function switchPanes() {
   openOverlay({ mod: "terminals-launcher", kind: "dialog", frame: "none", width: 720, height: 500, props: { mode: "panes" } });
 }
 
-function row(id) {
+function row(id, C) {
   return own(h_flex())
     .id(id)
     .flex_none()
@@ -439,10 +428,11 @@ export default class TerminalsSide extends View {
   }
 
   chip(t, c, q, compact) {
+    const C = this.C;
     const on = c.active && q.focused;
     const id = `pane-${q.pane}`;
     const hovered = this.hovered === id;
-    const x = closeButton(`tm-x-${q.pane}`, "pane.close", { pane: q.pane });
+    const x = closeButton(`tm-x-${q.pane}`, "pane.close", { pane: q.pane }, C);
     return this.tips.wrap(
       id,
       own(h_flex())
@@ -472,7 +462,7 @@ export default class TerminalsSide extends View {
           run("tab.select", { id: c.id });
           run("pane.focus", { pane: q.pane });
         })
-        .child(tile(t, q))
+        .child(tile(t, q, C))
         .when(!compact, (el) => el.child(div().flex_1().min_w(0).truncate().text_color(on ? C.text : C.soft).child(paneLabel(q))))
         .when(!compact && (hovered || on), (el) => el.child(x))
         .when(compact && hovered, (el) =>
@@ -486,10 +476,11 @@ export default class TerminalsSide extends View {
 
 
   tab(t, all, space, c, i) {
+    const C = this.C;
     const mine = all.filter((q) => q.tab === c.id);
     const split = mine.length > 1;
     const p = lead(mine);
-    return row(`tm-${c.id}`)
+    return row(`tm-${c.id}`, C)
       .when(split, (el) => el.h(42).px(4).gap(4).bg(c.active ? C.split : "#00000000").when(c.active, (e) => e.shadow_md()))
       .when(!split && c.active, (el) => el.bg(C.selected).border_1().border_color(C.selectedEdge).shadow_md())
       .when(!split && !c.active, (el) => el.hover((s) => s.bg(C.hover)))
@@ -502,12 +493,12 @@ export default class TerminalsSide extends View {
       .when(split, (el) => el.children(mine.map((q) => this.chip(t, c, q, mine.length > 2))))
       .on_hover(this.hover(c.id))
       .when(!split, (el) =>
-        el.child(tile(t, p)).child(div().flex_1().min_w(0).truncate().text_color(c.active ? C.text : C.soft).child(label(c, p))),
+        el.child(tile(t, p, C)).child(div().flex_1().min_w(0).truncate().text_color(c.active ? C.text : C.soft).child(label(c, p))),
       )
       .when(!split && !this.numbers && (c.active || this.hovered === c.id), (el) =>
-        el.child(this.tips.wrap(`x-${c.id}`, closeButton(`tm-x-${c.id}`, "tab.close", { id: c.id }), "Close tab", "cmd-w")),
+        el.child(this.tips.wrap(`x-${c.id}`, closeButton(`tm-x-${c.id}`, "tab.close", { id: c.id }, C), "Close tab", "cmd-w")),
       )
-      .when(this.numbers && i < 9, (el) => el.child(badge(i + 1)));
+      .when(this.numbers && i < 9, (el) => el.child(badge(i + 1, C)));
   }
 
   full() {
@@ -664,9 +655,10 @@ export default class TerminalsSide extends View {
   }
 
   address(all, space) {
+    const C = this.C;
     const p = all.find((q) => q.focused && space.tabs.some((c) => c.active && c.id === q.tab));
     const path = folder(p?.cwd) || folder(space.folder);
-    return row("tm-address")
+    return row("tm-address", C)
       .flex_none()
       .h(42)
       .px(10)
@@ -694,12 +686,13 @@ export default class TerminalsSide extends View {
   }
 
   spacesBar() {
+    const C = this.C;
     return h_flex()
       .flex_none()
       .h(40)
       .gap(2)
       .items_center()
-      .child(this.tips.wrap("keys", iconButton("tm-keys", "command", openPalette), "Commands", "cmd-shift-p"))
+      .child(this.tips.wrap("keys", iconButton("tm-keys", "command", openPalette, C), "Commands", "cmd-shift-p"))
       .child(div().flex_1())
       .children(
         spaces().map((p, i) =>
@@ -723,7 +716,7 @@ export default class TerminalsSide extends View {
         ),
       )
       .child(div().flex_1())
-      .child(this.tips.wrap("new-space", iconButton("tm-new-space", "plus", () => run("space.new")), "New space"));
+      .child(this.tips.wrap("new-space", iconButton("tm-new-space", "plus", () => run("space.new"), C), "New space"));
   }
 
   applyTheme(th) {
@@ -752,7 +745,8 @@ export default class TerminalsSide extends View {
     const now = panes().find((q) => q.focused && space.tabs.some((c) => c.active && c.id === q.tab))?.pane;
     const recent = shared("arc-space.recent-panes") ?? [];
     if (now && recent[0] !== now) setShared("arc-space.recent-panes", [now, ...recent.filter((id) => id !== now)].slice(0, 50));
-    Object.assign(C, palette(th));
+    this.C = palette(th);
+    const C = this.C;
     this.applyTheme(th);
     this.carousel(space, cx);
     this.track(space, cx);
@@ -773,13 +767,13 @@ export default class TerminalsSide extends View {
         .pr(10)
         .items_center()
         .when(mac, (el) => el.pl(68))
-        .child(this.tips.wrap("toggle", iconButton("tm-toggle", "sidebar", (_e, cx) => this.toggle(cx)), "Toggle sidebar", "cmd-s"))
+        .child(this.tips.wrap("toggle", iconButton("tm-toggle", "sidebar", (_e, cx) => this.toggle(cx), C), "Toggle sidebar", "cmd-s"))
         .child(div().flex_1())
         .when(Boolean(w.buttons), (el) =>
           el.gap(6)
-            .child(windowButton("tm-min", "win-min", "window.minimize"))
-            .child(windowButton("tm-max", w.maximized ? "win-restore" : "win-max", "window.maximize"))
-            .child(windowButton("tm-close", "win-close", "window.close")),
+            .child(windowButton("tm-min", "win-min", "window.minimize", C))
+            .child(windowButton("tm-max", w.maximized ? "win-restore" : "win-max", "window.maximize", C))
+            .child(windowButton("tm-close", "win-close", "window.close", C)),
         ),
     );
 
@@ -804,7 +798,7 @@ export default class TerminalsSide extends View {
           .children(this.list(t, all, space))
           .child(div().flex_none().mx(10).my(6).h(1).bg(C.rule))
           .child(
-            row("tm-new")
+            row("tm-new", C)
               .text_color(C.dim)
               .hover((s) => s.bg(C.hover).text_color(C.text))
               .on_click(() => run("tab.new", { space: space.id }))

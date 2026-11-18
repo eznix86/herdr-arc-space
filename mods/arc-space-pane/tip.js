@@ -56,8 +56,9 @@ function pill(id, label, keys, visible) {
 }
 
 export class Tips {
-  constructor(later) {
+  constructor(later, muted) {
     this.later = later;
+    this.muted = muted ?? (() => false);
     this.want = null;
     this.open = null;
     this.visible = false;
@@ -85,6 +86,7 @@ export class Tips {
         cx.notify();
         return;
       }
+      if (this.muted()) return;
       this.want = id;
       this.later(DELAY, () => {
         if (this.want !== id) return;
@@ -98,7 +100,7 @@ export class Tips {
   }
 
   wrap(id, trigger, label, keys, full) {
-    const open = this.open === id;
+    const open = this.open === id && !this.muted();
     const spot = div().absolute().right(INSET).bottom(INSET).w(1).h(1);
     return div()
       .relative()

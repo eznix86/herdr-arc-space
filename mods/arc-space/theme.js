@@ -1,4 +1,4 @@
-import { shared, setShared, settings } from "herdr";
+import { shared, setShared, settings, theme as ui } from "herdr";
 
 export const KEY = "arc-space.themes";
 export const PRESET_SETS = [
@@ -102,13 +102,13 @@ export function palette(theme) {
     return {
       selected: "#ffffff24", selectedEdge: "#ffffff1f", split: "#ffffff0f", chip: "#ffffff0d",
       hover: "#ffffff12", rule: "#ffffff1a", text: LIGHT_TEXT, soft: "#d2d4d8", dim: "#ffffff8c",
-      dot: cs[0], pressed: "#00000033",
+      dot: cs[0], pressed: "#00000033", panel: ui().popover, edge: ui().border,
     };
   }
   return {
     selected: "#ffffffb8", selectedEdge: "#ffffffcc", split: "#ffffff4d", chip: "#ffffff40",
     hover: "#0000000f", rule: "#0000001a", text: DARK_TEXT, soft: "#2f3137", dim: "#0000008c",
-    dot: cs[0], pressed: "#0000001f",
+    dot: cs[0], pressed: "#0000001f", panel: ui().popover, edge: ui().border,
   };
 }
 

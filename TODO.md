@@ -8,12 +8,12 @@ a push, and this file ticked.
 
 ## Phase 1, correctness
 
-- [ ] **Menus follow the theme.** `mods/arc-space/main.js` hardcodes `#3a3b40` and `#2a2b2f` in
+- [x] **Menus follow the theme.** `mods/arc-space/main.js` hardcodes `#3a3b40` and `#2a2b2f` in
   `menuPanel`, so context menus stay dark on a light theme. Use the palette instead.
-- [ ] **Palette per instance.** `C` is module-level and mutated in `render` by
+- [x] **Palette per instance.** `C` is module-level and mutated in `render` by
   `Object.assign(C, palette(th))`, so every mod copy (sidebar, menus, picker) shares one object.
   Two spaces with different hues can paint each other. Make it per instance and pass it down.
-- [ ] **One tooltip module.** `tip.js` exists twice and has drifted: the sidebar copy takes a
+- [x] **One tooltip module.** `tip.js` exists twice and has drifted: the sidebar copy takes a
   `muted` callback, the pane copy does not. Keep one implementation with `muted` optional.
 - [ ] **No swallowed errors.** `applyTheme` and `reopen.js` have empty `catch {}` blocks. Log and
   notify instead, so a failed layout write is visible.
