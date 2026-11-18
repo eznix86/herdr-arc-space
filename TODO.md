@@ -19,6 +19,12 @@ a push, and this file ticked.
 - [x] **No swallowed errors.** `applyTheme` and `reopen.js` have empty `catch {}` blocks. Log and
   notify instead, so a failed layout write is visible.
 - [x] **Ignore generated files.** `.gitignore`: `jsconfig.json`, `*.d.ts`, `*.error`.
+- [ ] **Launcher and palette follow the theme.** `mods/terminals-launcher/` and
+  `mods/terminals-palette/` still hardcode `#2a2b2f` and friends: the same mix the menus had,
+  a `theme()` surface with constant ink. Give both the `theme()` treatment.
+- [ ] **CI runs the tests.** `node --test test/` fails on the runner (`MODULE_NOT_FOUND`: a
+  directory read as an entry point on Node 24) while it passes locally. Use `node --test` with no
+  path, in `ci.yml` and in `package.json`.
 
 ## Phase 2, structure and tests
 
