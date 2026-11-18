@@ -36,10 +36,10 @@ a push, and this file ticked.
 
 ## Phase 3, performance and packaging
 
-- [ ] **Index panes once per render** instead of `all.filter(...)` per tab.
-- [ ] **Event-driven reopen.** Drive `reopen.js` from the render cycle; drop the 1.5 s timer.
-- [ ] **Debounce theme writes.** One `layout.set` per ~150 ms while the dial or wheel is dragged.
-- [ ] **Cache the `--help` probe** with a TTL instead of forever, so a cold reopen cannot stall.
+- [x] **Index panes once per render** instead of `all.filter(...)` per tab.
+- [x] **Event-driven reopen.** Drive `reopen.js` from the render cycle; drop the 1.5 s timer.
+- [x] **Debounce theme writes.** One `layout.set` per ~150 ms while the dial or wheel is dragged.
+- [x] **Cache the `--help` probe** with a TTL instead of forever, so a cold reopen cannot stall.
 - [ ] **Shrink the assets.** Five grain tiles are 2.5 MB of an 8.4 MB repo; compress them or ship
   three levels.
 - [ ] **`CHANGELOG.md`** and a first version tag.

@@ -45,8 +45,27 @@ function closeButton(id, command, args, C) {
 const PUSH_STEPS = 11;
 const FAST = 130;
 const STEP = 14;
+const THEME_MS = 150;
 
 const pause = (later, ms) => new Promise((done) => later(ms, done));
+
+// Panes by tab, built once per render: the tab list, the address and the
+// snapshot all read it instead of rescanning every pane for every tab.
+// A helper called without it still works and scans; that path is only for
+// calls outside render.
+function indexPanes(all) {
+  const byTab = new Map();
+  for (const p of all) {
+    const mine = byTab.get(p.tab);
+    if (mine) mine.push(p);
+    else byTab.set(p.tab, [p]);
+  }
+  return byTab;
+}
+
+function tabPanes(index, id) {
+  return index ? index.get(id) ?? [] : panes().filter((q) => q.tab === id);
+}
 
 function openPalette() {
   openOverlay({ mod: "terminals-palette", kind: "dialog", frame: "none", width: 640, height: 520 });
@@ -102,9 +121,9 @@ export default class TerminalsSide extends View {
     this.jobs = new JobQueue();
     this.tips = new Tips((ms, fn) => this.later(ms, fn), () => Boolean(shared(MENU_OPEN)));
     this.out = Boolean(shared(COLLAPSED));
+    this.themeDue = false;
     if (checking()) return;
     this.jobs.start(cx);
-    cx.timer.every(1500, () => this.watchClosed());
     cx.spawn(async () => {
       for (;;) {
         await new Promise((wake) => (this.themeWake = wake));
@@ -218,9 +237,9 @@ export default class TerminalsSide extends View {
   }
 
 
-  tab(t, all, space, c, i) {
+  tab(t, index, space, c, i) {
     const C = this.C;
-    const mine = all.filter((q) => q.tab === c.id);
+    const mine = tabPanes(index, c.id);
     const split = mine.length > 1;
     const p = lead(mine);
     return row(`tm-${c.id}`, C)
@@ -334,8 +353,8 @@ export default class TerminalsSide extends View {
     this.spaceId = space.id;
   }
 
-  watchClosed() {
-    const snap = snapshot();
+  watchClosed(index) {
+    const snap = snapshot(index);
     if (this.snap) recordClosed(this.snap, snap);
     this.snap = snap;
   }
@@ -381,13 +400,13 @@ export default class TerminalsSide extends View {
       .transition("opacity", { duration: FAST, delay: entering ? 0 : delay, easing: "ease-out" });
   }
 
-  list(t, all, space) {
+  list(t, index, space) {
     this.heights = {};
     const rows = space.tabs.map((c, i) => {
-      const split = all.filter((q) => q.tab === c.id).length > 1;
+      const split = tabPanes(index, c.id).length > 1;
       const h = split ? 42 : 38;
       this.heights[c.id] = h;
-      return this.stagger(div().id(`tm-w-${c.id}`).overflow_hidden(), i + 1, c.id, h).child(this.tab(t, all, space, c, i));
+      return this.stagger(div().id(`tm-w-${c.id}`).overflow_hidden(), i + 1, c.id, h).child(this.tab(t, index, space, c, i));
     });
     this.ghosts = this.ghosts.filter((g) => Date.now() - g.born < FAST + 170);
     for (const g of [...this.ghosts].sort((a, b) => a.at - b.at)) {
@@ -403,9 +422,10 @@ export default class TerminalsSide extends View {
     if (tab) run("tab.select", { id: tab.id });
   }
 
-  address(all, space) {
+  address(index, space) {
     const C = this.C;
-    const p = all.find((q) => q.focused && space.tabs.some((c) => c.active && c.id === q.tab));
+    const active = space.tabs.find((c) => c.active);
+    const p = active ? tabPanes(index, active.id).find((q) => q.focused) : undefined;
     const path = folder(p?.cwd) || folder(space.folder);
     return row("tm-address", C)
       .flex_none()
@@ -468,13 +488,23 @@ export default class TerminalsSide extends View {
       .child(this.tips.wrap("new-space", iconButton("tm-new-space", "plus", () => run("space.new"), C), "New space"));
   }
 
+  // Called on every render with the space's theme. Only a change of the
+  // background fingerprint does anything, and a change schedules at most one
+  // write: `pending` keeps the latest theme, so a drag of the dial or the
+  // wheel writes once per THEME_MS with the value it ended on.
   applyTheme(th) {
     if (shared(LAYOUT) !== "arc-space" || !this.themeWake) return;
     const key = JSON.stringify(backgrounds(th));
     if (key === this.applied) return;
     this.applied = key;
     this.pending = th;
-    this.themeWake();
+    if (this.themeDue) return;
+    this.themeDue = true;
+    this.later(THEME_MS, () => {
+      this.themeDue = false;
+      if (!this.pending || !this.themeWake) return;
+      this.themeWake();
+    });
   }
 
   async close() {
@@ -488,10 +518,12 @@ export default class TerminalsSide extends View {
     if (this.view === "tab-menu") return tabMenuView();
     if (this.view === "tab-pick") return tabPickView();
     const t = theme();
+    const index = indexPanes(panes());
     const space = spaces().find((p) => p.active);
     if (!space) return div();
     const th = themeFor(space.id);
-    const now = panes().find((q) => q.focused && space.tabs.some((c) => c.active && c.id === q.tab))?.pane;
+    const activeTab = space.tabs.find((c) => c.active);
+    const now = activeTab ? tabPanes(index, activeTab.id).find((q) => q.focused)?.pane : undefined;
     const recent = shared(RECENT_PANES) ?? [];
     if (now && recent[0] !== now) setShared(RECENT_PANES, [now, ...recent.filter((id) => id !== now)].slice(0, 50));
     this.C = palette(th);
@@ -499,8 +531,6 @@ export default class TerminalsSide extends View {
     this.applyTheme(th);
     this.carousel(space, cx);
     this.track(space, cx);
-    if (!checking()) this.watchClosed();
-    const all = panes();
     const w = win() ?? {};
     const mac = w.platform === "macos" && w.titlebar === "none" && !w.fullscreen;
 
@@ -535,7 +565,7 @@ export default class TerminalsSide extends View {
       .pr(10)
       .gap(6)
       .right(0)
-      .child(this.stagger(div().id(`tm-a-${space.id}`), 0, "address", 42).child(this.tips.wrap("address", this.address(all, space), "Search tabs and agents", "cmd-t", true)))
+      .child(this.stagger(div().id(`tm-a-${space.id}`), 0, "address", 42).child(this.tips.wrap("address", this.address(index, space), "Search tabs and agents", "cmd-t", true)))
       .child(
         v_flex()
           .id("tm-list")
@@ -544,7 +574,7 @@ export default class TerminalsSide extends View {
           .pt(6)
           .gap(2)
           .overflow_y_scroll()
-          .children(this.list(t, all, space))
+          .children(this.list(t, index, space))
           .child(div().flex_none().mx(10).my(6).h(1).bg(C.rule))
           .child(
             row("tm-new", C)
@@ -556,7 +586,7 @@ export default class TerminalsSide extends View {
           ),
       );
 
-    return v_flex()
+    const root = v_flex()
       .id("tm-root")
       .size_full()
       .gap(6)
@@ -565,5 +595,10 @@ export default class TerminalsSide extends View {
       .child(top)
       .child(div().id("tm-stage").on_mouse_down("right", () => spaceMenu(space.id)).relative().flex_1().min_h(0).w_full().overflow_hidden().child(body))
       .child(h_flex().id("tm-bottom").flex_none().w_full().justify_end().overflow_hidden().child(div().flex_none().w(full).pr(10).child(this.spacesBar())));
+    // The reopen snapshot follows the render cycle (tabs and panes changing is
+    // what redraws), so there is no polling timer. It only records until the
+    // first render has happened, and recordClosed writes only on a removal.
+    if (!checking()) this.watchClosed(index);
+    return root;
   }
 }

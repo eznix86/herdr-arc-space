@@ -3,6 +3,7 @@ import { herdr } from "./lib/herdr.js";
 import { CLOSED } from "./lib/state.js";
 
 const KEEP = 20;
+const TTL = 10 * 60 * 1000;
 
 const RESUME = [
   { match: /oh-my-pi|\bomp\b/, argv: ["omp", "--continue"], help: ["omp", "--help"], flag: "--continue" },
@@ -18,6 +19,7 @@ const RESUME = [
   { match: /\bpi\b/, argv: ["pi", "--continue"], help: ["pi", "--help"], flag: "--continue" },
 ];
 
+// argv[0] -> { ok, at }: the last `--help` probe and when it ran.
 const supported = new Map();
 
 function describe(p) {
@@ -30,12 +32,13 @@ function describe(p) {
   };
 }
 
-export function snapshot() {
-  const all = panes();
+// `byTab` (tab id -> panes) comes from the render that calls this, so the
+// snapshot does not rescan every pane once per tab. Omitted: scan.
+export function snapshot(byTab) {
   const out = {};
   for (const s of spaces()) {
     for (const tab of s.tabs) {
-      const mine = all.filter((p) => p.tab === tab.id && p.terminal);
+      const mine = (byTab ? byTab.get(tab.id) ?? [] : panes().filter((p) => p.tab === tab.id)).filter((p) => p.terminal);
       if (mine.length) out[tab.id] = { space: s.id, name: tab.name, named: tab.named, panes: mine.map(describe) };
     }
   }
@@ -54,18 +57,23 @@ export function recordClosed(before, after) {
 async function resumeArgv(pane) {
   const rule = RESUME.find((r) => r.match.test(pane.who));
   if (!rule) return null;
-  if (!supported.has(rule.argv[0])) {
+  const key = rule.argv[0];
+  let hit = supported.get(key);
+  if (!hit || Date.now() - hit.at > TTL) {
+    let ok = false;
     try {
       const r = await exec(rule.help[0], rule.help.slice(1), { cwd: pane.cwd ?? undefined, timeout: 8000 });
-      supported.set(rule.argv[0], `${r.stdout}${r.stderr}`.includes(rule.flag));
+      ok = `${r.stdout}${r.stderr}`.includes(rule.flag);
     } catch {
       // The probe is a question, not an action: an agent that doesn't know
       // `--continue`/`--resume` fails here, so silence is the answer. The
-      // reopen itself reports through its caller.
-      supported.set(rule.argv[0], false);
+      // reopen itself reports through its caller. The miss is remembered only
+      // until TTL, so installing or updating an agent can be picked up.
     }
+    hit = { ok, at: Date.now() };
+    supported.set(key, hit);
   }
-  return supported.get(rule.argv[0]) ? rule.argv : null;
+  return hit.ok ? rule.argv : null;
 }
 
 async function argvFor(pane) {
