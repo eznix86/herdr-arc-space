@@ -15,7 +15,6 @@ import { commands, layouts, keys, run, theme, props, closeOverlay, openOverlay, 
 const SHOWN = 9;
 const ROW_H = 42;
 const HEAD_H = 30;
-const C = { panel: "#2a2b2f", edge: "#3a3b40", text: "#ecedef", muted: "#c4c6ca", dim: "#8e9097", hover: "#ffffff0d", picked: "#41677b", chip: "#ffffff14" };
 const LIST_H = SHOWN * ROW_H;
 const GROUPS = ["Recent", "Tab", "Pane", "Space", "Layout", "Terminal", "Agent", "Window", "App"];
 
@@ -184,8 +183,11 @@ export default class Palette extends View {
       .sort((a, b) => b.score - a.score || (rank(a.e) < 0 ? 99 : rank(a.e)) - (rank(b.e) < 0 ? 99 : rank(b.e)));
   }
 
+  // The palette is a Herdr popover: surface and ink come from theme(), read
+  // once per render. palette() describes the space gradient instead, so on a
+  // light gradient it would put near-black text on a dark panel.
   title(t, text, hits, on) {
-    if (!hits?.length) return div().truncate().text_color(on ? C.text : C.muted).when(on, (d) => d.font_semibold()).child(text);
+    if (!hits?.length) return div().truncate().text_color(on ? t.accent_foreground : t.foreground).when(on, (d) => d.font_semibold()).child(text);
     const parts = [];
     let cur = "";
     let lit = false;
@@ -199,7 +201,7 @@ export default class Palette extends View {
       cur += ch;
     });
     if (cur) parts.push([cur, lit]);
-    return h_flex().children(parts.map(([s, h]) => div().text_color(h ? (on ? "#ffffff" : "#8fc3dc") : on ? C.text : C.muted).when(h || on, (d) => d.font_semibold()).child(s.replace(/ /g, "\u00a0"))));
+    return h_flex().children(parts.map(([s, h]) => div().text_color(h ? (on ? t.accent_foreground : t.accent) : on ? t.accent_foreground : t.foreground).when(h || on, (d) => d.font_semibold()).child(s.replace(/ /g, "\u00a0"))));
   }
 
   render() {
@@ -229,7 +231,7 @@ export default class Palette extends View {
     this.scroll = Math.max(0, Math.min(this.scroll, this.maxScroll));
     const glyph = { cmd: "\u2318", shift: "\u21e7", ctrl: "\u2303", alt: "\u2325" };
     const key = (k, on) =>
-      h_flex().gap(4).children(keyParts(k).map((p) => div().min_w(22).h(22).px(6).flex().items_center().justify_center().rounded(6).bg(on ? "#ffffff" : C.chip).text_size(11.5).text_color(on ? C.picked : C.dim).child(glyph[p] ?? p.toUpperCase())));
+      h_flex().gap(4).children(keyParts(k).map((p) => div().min_w(22).h(22).px(6).flex().items_center().justify_center().rounded(6).bg(on ? t.accent_foreground : t.raised).text_size(11.5).text_color(on ? t.accent : t.muted).child(glyph[p] ?? p.toUpperCase())));
     // In a scrolling list each item is placed at its edges from the model
     // above, not stacked: GPUI rounds every height to whole pixels, and a
     // stack of rounded heights drifts away from the model (19 px at zoom 1.3
@@ -242,7 +244,7 @@ export default class Palette extends View {
     const list = [];
     rows.forEach((r, i) => {
       const { head, title, row } = tops[i];
-      if (head && visible(title, row)) list.push(place(h_flex(), title, row).px(22).pb(6).items_end().text_size(11).font_semibold().text_color(C.dim).child(r.head.toUpperCase()));
+      if (head && visible(title, row)) list.push(place(h_flex(), title, row).px(22).pb(6).items_end().text_size(11).font_semibold().text_color(t.muted).child(r.head.toUpperCase()));
       if (!visible(row, row + ROW_H)) return;
       const on = i === this.at;
       const k = keyOf(r.e, bound);
@@ -256,11 +258,13 @@ export default class Palette extends View {
           .rounded(10)
           .cursor_pointer()
           .text_size(14.5)
-          .when(on, (el) => el.bg(C.picked))
-          .when(!on, (el) => el.hover((s) => s.bg(C.hover)))
+          // The selected row is the theme's accent, with the ink the theme
+          // pairs with it, so it reads in both appearances.
+          .when(on, (el) => el.bg(t.accent))
+          .when(!on, (el) => el.hover((s) => s.bg(t.hover)))
           .on_click(() => this.go(r.e))
           .child(div().flex_1().min_w(0).child(this.title(t, r.e.title, r.hits, on)))
-          .when(Boolean(this.query), (el) => el.child(div().text_size(12.5).text_color(on ? C.text : C.dim).child(r.e.group)))
+          .when(Boolean(this.query), (el) => el.child(div().text_size(12.5).text_color(on ? t.accent_foreground : t.muted).child(r.e.group)))
           .when(Boolean(k), (el) => el.child(key(k, on))),
       );
     });
@@ -271,8 +275,8 @@ export default class Palette extends View {
       .min_h(0)
       .rounded(16)
       .border_1()
-      .border_color(C.edge)
-      .bg(C.panel)
+      .border_color(t.border)
+      .bg(t.popover)
       .shadow_lg()
       .overflow_hidden()
       .on_key_down((e, cx) => {
@@ -294,11 +298,11 @@ export default class Palette extends View {
           .px(22)
           .gap(14)
           .items_center()
-          .child(svg("mods/terminals-palette/command.svg").size(20).text_color(C.text))
-          .child(Input.new(this.input).flex_1().h_full().text_size(22).text_color(C.text))
-          .child(div().px(8).py(3).rounded(6).bg(C.chip).text_size(11).text_color(C.dim).child("Esc")),
+          .child(svg("mods/terminals-palette/command.svg").size(20).text_color(t.foreground))
+          .child(Input.new(this.input).flex_1().h_full().text_size(22).text_color(t.foreground))
+          .child(div().px(8).py(3).rounded(6).bg(t.raised).text_size(11).text_color(t.muted).child("Esc")),
       )
-      .child(div().flex_none().h(1).mx(12).mb(8).bg(C.edge))
+      .child(div().flex_none().h(1).mx(12).mb(8).bg(t.border))
       .child(
         rows.length
           ? div()
@@ -316,7 +320,7 @@ export default class Palette extends View {
                 cx.notify();
               })
               .children(fixed ? list : [v_flex().children(list)])
-          : div().px(24).pt(6).pb(18).text_size(14).text_color(C.dim).child(`Nothing matches "${this.query}". Tabs are in \u2318T.`),
+          : div().px(24).pt(6).pb(18).text_size(14).text_color(t.muted).child(`Nothing matches "${this.query}". Tabs are in \u2318T.`),
       );
   }
 }

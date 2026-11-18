@@ -6,18 +6,6 @@ import { OPEN, MODE, STEP, NEW_MENU_AGENTS, RECENT_PANES } from "./lib/state.js"
 const ROW = 48;
 const VISIBLE = 8;
 
-const C = {
-  panel: "#2a2b2f",
-  edge: "#3a3b40",
-  rule: "#3a3b40",
-  text: "#ecedef",
-  dim: "#8e9097",
-  hover: "#ffffff0d",
-  picked: "#41677b",
-  chip: "#ffffff12",
-  shell: "#1f2a22",
-};
-
 const clean = (s) => (s ?? "").replace(/^[^\p{L}\p{N}\p{Ps}\p{Pi}]+/u, "").replace(/^\[ [!.] \] /, "").trim();
 
 function paneTitle(p) {
@@ -37,13 +25,16 @@ function tabTitle(tab, p) {
   return telling ? live : prog ?? "Terminal";
 }
 
-function programIcon(g) {
-  if (!g?.icon) return svg("icons/shell.svg").size(15).text_color(C.text);
-  return g.tint ? svg(g.icon).size(15).text_color(g.color ?? C.text) : image(g.icon).w(15).h(15);
+// The launcher is a Herdr popover, so its surface and the ink on it come from
+// theme(), read once per render; palette() describes the space gradient, not a
+// popover, and would put near-black text on a dark panel.
+function programIcon(g, t) {
+  if (!g?.icon) return svg("icons/shell.svg").size(15).text_color(t.foreground);
+  return g.tint ? svg(g.icon).size(15).text_color(g.color ?? t.foreground) : image(g.icon).w(15).h(15);
 }
 
-function tile(icon, bg) {
-  return div().flex_none().w(28).h(28).rounded(7).bg(bg ?? C.chip).flex().items_center().justify_center().child(icon);
+function tile(icon, bg, t) {
+  return div().flex_none().w(28).h(28).rounded(7).bg(bg ?? t.raised).flex().items_center().justify_center().child(icon);
 }
 
 export default class Launcher extends View {
@@ -86,7 +77,7 @@ export default class Launcher extends View {
     }
   }
 
-  paneRows() {
+  paneRows(t) {
     const space = spaces().find((s) => s.active);
     const recent = shared(RECENT_PANES) ?? [];
     const rank = (p) => {
@@ -102,24 +93,26 @@ export default class Launcher extends View {
           const where = tabTitle(tab, p);
           if (f && ![name, where, s.name, p.program?.name ?? "", p.cwd ?? ""].join(" ").toLowerCase().includes(f)) continue;
           const current = Boolean(p.focused && tab.active && s.id === space?.id);
-          out.push({ kind: "pane", name, pane: p, tab, space: s, here: s.id === space?.id, current, icon: programIcon(p.program), bg: p.program?.tile });
+          out.push({ kind: "pane", name, pane: p, tab, space: s, here: s.id === space?.id, current, icon: programIcon(p.program, t), bg: p.program?.tile });
         }
       }
     }
     return out.sort((a, b) => b.current - a.current || rank(a.pane) - rank(b.pane));
   }
 
-  rows() {
-    if (this.mode === "panes") return this.paneRows();
+  rows(t) {
+    if (this.mode === "panes") return this.paneRows(t);
     const space = spaces().find((s) => s.active);
     const all = panes();
     const f = this.filter.toLowerCase();
     const match = (...words) => !f || words.join(" ").toLowerCase().includes(f);
     const out = [];
-    if (match("new terminal shell")) out.push({ kind: "new", name: "New Terminal", icon: svg("icons/shell.svg").size(15).text_color(C.text), bg: C.shell });
-    if (match("split right new terminal")) out.push({ kind: "split", dir: "right", name: "Split Right", icon: svg("mods/terminals-launcher/split-right.svg").size(15).text_color(C.text), bg: C.shell });
-    if (match("split down new terminal")) out.push({ kind: "split", dir: "down", name: "Split Down", icon: svg("mods/terminals-launcher/split-down.svg").size(15).text_color(C.text), bg: C.shell });
-    if (match("new space")) out.push({ kind: "space", name: "New Space", icon: svg("mods/terminals-launcher/plus.svg").size(15).text_color(C.text), bg: C.shell });
+    // Tiles and rows use the popover's own raised surface; the shell tint the
+    // launcher had was a green that only worked on a dark panel.
+    if (match("new terminal shell")) out.push({ kind: "new", name: "New Terminal", icon: svg("icons/shell.svg").size(15).text_color(t.foreground), bg: t.raised });
+    if (match("split right new terminal")) out.push({ kind: "split", dir: "right", name: "Split Right", icon: svg("mods/terminals-launcher/split-right.svg").size(15).text_color(t.foreground), bg: t.raised });
+    if (match("split down new terminal")) out.push({ kind: "split", dir: "down", name: "Split Down", icon: svg("mods/terminals-launcher/split-down.svg").size(15).text_color(t.foreground), bg: t.raised });
+    if (match("new space")) out.push({ kind: "space", name: "New Space", icon: svg("mods/terminals-launcher/plus.svg").size(15).text_color(t.foreground), bg: t.raised });
     for (const s of spaces()) {
       for (const tab of s.tabs) {
         const mine = all.filter((p) => p.tab === tab.id);
@@ -129,21 +122,21 @@ export default class Launcher extends View {
           for (const p of mine) {
             const name = paneTitle(p);
             if (!match(name, tabTitle(tab, p), s.name, p.program?.name ?? "")) continue;
-            out.push({ kind: "pane", name, pane: p, tab, space: s, here: s.id === space?.id, icon: programIcon(p.program), bg: p.program?.tile });
+            out.push({ kind: "pane", name, pane: p, tab, space: s, here: s.id === space?.id, icon: programIcon(p.program, t), bg: p.program?.tile });
           }
           continue;
         }
         const p = mine.find((q) => q.focused) ?? mine.find((q) => q.program?.agent) ?? mine[0];
         const name = tabTitle(tab, p);
         if (!match(name, s.name, ...mine.map((q) => q.program?.name ?? ""))) continue;
-        out.push({ kind: "tab", name, tab, space: s, here: s.id === space?.id, icon: programIcon(p?.program), bg: p?.program?.tile });
+        out.push({ kind: "tab", name, tab, space: s, here: s.id === space?.id, icon: programIcon(p?.program, t), bg: p?.program?.tile });
       }
     }
     for (const a of this.agents.filter((a) => a.installed)) {
       if (!match("new", a.name, a.key)) continue;
-      out.push({ kind: "agent", name: `New ${a.name}`, agent: a, icon: a.tint ? svg(a.icon).size(15).text_color(C.text) : image(a.icon).w(15).h(15) });
+      out.push({ kind: "agent", name: `New ${a.name}`, agent: a, icon: a.tint ? svg(a.icon).size(15).text_color(t.foreground) : image(a.icon).w(15).h(15) });
     }
-    if (f) out.push({ kind: "run", name: `Run “${this.filter}”`, icon: svg("icons/shell.svg").size(15).text_color(C.text), bg: C.shell });
+    if (f) out.push({ kind: "run", name: `Run “${this.filter}”`, icon: svg("icons/shell.svg").size(15).text_color(t.foreground), bg: t.raised });
     return out;
   }
 
@@ -168,7 +161,7 @@ export default class Launcher extends View {
     } else if (r.kind === "run") run("tab.new", { space: space?.id, argv: ["sh", "-c", this.filter] });
   }
 
-  hint(r, on) {
+  hint(r, on, t) {
     const text =
       r.kind === "pane" && this.mode === "panes"
         ? r.current ? "Current" : r.here ? "Switch to Pane" : r.space.name
@@ -182,7 +175,7 @@ export default class Launcher extends View {
       .flex_none()
       .gap(12)
       .items_center()
-      .when(Boolean(text), (el) => el.child(div().text_size(14).text_color(on ? C.text : C.dim).child(text)))
+      .when(Boolean(text), (el) => el.child(div().text_size(14).text_color(on ? t.foreground : t.muted).child(text)))
       .child(
         div()
           .w(30)
@@ -191,14 +184,17 @@ export default class Launcher extends View {
           .flex()
           .items_center()
           .justify_center()
-          .bg(on ? "#ffffff" : C.chip)
-          .text_color(on ? C.picked : C.dim)
+          // On the selected row the arrow is the accent's ink on the accent,
+          // so it stays legible whichever way round the theme puts them.
+          .bg(on ? t.accent : t.raised)
+          .text_color(on ? t.accent_foreground : t.muted)
           .child(svg("mods/terminals-launcher/arrow.svg").size(16)),
       );
   }
 
   render() {
-    const rows = this.rows();
+    const t = theme();
+    const rows = this.rows(t);
     const step = shared(STEP) ?? 0;
     if (step !== this.step) {
       this.at = (this.at + (step - this.step)) % Math.max(1, rows.length);
@@ -213,8 +209,8 @@ export default class Launcher extends View {
       .w_full()
       .rounded(16)
       .border_1()
-      .border_color(C.edge)
-      .bg(C.panel)
+      .border_color(t.border)
+      .bg(t.popover)
       .shadow_lg()
       .overflow_hidden()
       .on_key_down((e, cx) => {
@@ -231,15 +227,15 @@ export default class Launcher extends View {
           .px(22)
           .gap(14)
           .items_center()
-          .child(svg(this.mode === "panes" ? "mods/terminals-launcher/split-right.svg" : "mods/terminals-launcher/search.svg").size(20).text_color(C.text))
-          .child(Input.new(this.input).flex_1().h_full().text_size(22).text_color(C.text)),
+          .child(svg(this.mode === "panes" ? "mods/terminals-launcher/split-right.svg" : "mods/terminals-launcher/search.svg").size(20).text_color(t.foreground))
+          .child(Input.new(this.input).flex_1().h_full().text_size(22).text_color(t.foreground)),
       )
-      .child(div().h(1).mx(12).bg(C.rule))
+      .child(div().h(1).mx(12).bg(t.border))
       .child(
         v_flex()
           .p(10)
           .gap(2)
-          .when(rows.length === 0, (el) => el.child(div().h(ROW).px(14).flex().items_center().text_color(C.dim).child("Nothing matches")))
+          .when(rows.length === 0, (el) => el.child(div().h(ROW).px(14).flex().items_center().text_color(t.muted).child("Nothing matches")))
           .children(
             shown.map((r, k) => {
               const i = first + k;
@@ -252,12 +248,12 @@ export default class Launcher extends View {
                 .items_center()
                 .rounded(10)
                 .cursor_pointer()
-                .when(on, (el) => el.bg(C.picked))
-                .when(!on, (el) => el.hover((s) => s.bg(C.hover)))
+                .when(on, (el) => el.bg(t.selected))
+                .when(!on, (el) => el.hover((s) => s.bg(t.hover)))
                 .on_click(() => this.go(r))
-                .child(tile(r.icon, r.bg))
-                .child(div().flex_1().min_w(0).truncate().text_size(15).text_color(C.text).when(on, (d) => d.font_semibold()).child(r.name))
-                .child(this.hint(r, on));
+                .child(tile(r.icon, r.bg, t))
+                .child(div().flex_1().min_w(0).truncate().text_size(15).text_color(t.foreground).when(on, (d) => d.font_semibold()).child(r.name))
+                .child(this.hint(r, on, t));
             }),
           ),
       );
