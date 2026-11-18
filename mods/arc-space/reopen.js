@@ -58,6 +58,9 @@ async function resumeArgv(pane) {
       const r = await exec(rule.help[0], rule.help.slice(1), { cwd: pane.cwd ?? undefined, timeout: 8000 });
       supported.set(rule.argv[0], `${r.stdout}${r.stderr}`.includes(rule.flag));
     } catch {
+      // The probe is a question, not an action: an agent that doesn't know
+      // `--continue`/`--resume` fails here, so silence is the answer. The
+      // reopen itself reports through its caller.
       supported.set(rule.argv[0], false);
     }
   }

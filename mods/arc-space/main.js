@@ -1,10 +1,25 @@
 import { View, div, svg, image } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
-import { spaces, panes, run, theme, home, appHome, openOverlay, nextCommand, checking, settings, shared, setShared, props, readTextFile, closeOverlay, exec, window as win } from "herdr";
+import { spaces, panes, run, theme, home, appHome, openOverlay, nextCommand, checking, settings, shared, setShared, props, readTextFile, closeOverlay, exec, notify, window as win } from "herdr";
 import { Picker } from "./picker.js";
 import { Tips } from "./tip.js";
 import { snapshot, recordClosed, reopenLast } from "./reopen.js";
 import { themeFor, palette, apply, backgrounds, find } from "./theme.js";
+
+// A failure the person can see: the log always gets the error, the toast does
+// not repeat itself. Same body at most every 30 s, so a failing loop (a theme
+// write on every render) cannot flood the window with notifications.
+let lastNotice = "";
+let lastNoticeAt = 0;
+
+function report(body, err) {
+  console.log(`arc-space: ${body}`, err);
+  const now = Date.now();
+  if (body === lastNotice && now - lastNoticeAt < 30000) return;
+  lastNotice = body;
+  lastNoticeAt = now;
+  notify({ title: "Arc Space", body, level: "error", timeout: 4000 });
+}
 
 function folder(cwd) {
   if (!cwd) return "";
@@ -380,9 +395,14 @@ export default class TerminalsSide extends View {
         const th = this.pending;
         try {
           const tree = JSON.parse(await readTextFile(appHome() + "/layouts/arc-space.json"));
-          if (!find(tree, "tint")) continue;
+          if (!find(tree, "tint")) {
+            report("The arc-space layout has no tint block; the theme was not applied");
+            continue;
+          }
           run("layout.set", { layout: apply(tree, th, shared("arc-space.collapsed") ? 0 : this.full()) });
-        } catch {}
+        } catch (err) {
+          report("Could not apply the theme to the layout", err);
+        }
       }
     });
     cx.spawn(async (cx) => {
@@ -392,7 +412,14 @@ export default class TerminalsSide extends View {
         else if (c === "toggle") this.toggle(cx);
         else if (c === "palette") openPalette();
         else if (c === "panes") switchPanes();
-        else if (c === "reopen") cx.spawn(async () => reopenLast());
+        else if (c === "reopen")
+          cx.spawn(async () => {
+            try {
+              await reopenLast();
+            } catch (err) {
+              report("Could not reopen the last tab", err);
+            }
+          });
         else if (c === "job") this.runJob(cx, shared("arc-space.job"));
 
         else if (c === "theme") editTheme(spaces().find((p) => p.active)?.id);
@@ -523,15 +550,22 @@ export default class TerminalsSide extends View {
   }
 
   async keepUntil(terminal, place, done) {
+    let lastErr;
     for (let i = 0; i < 20; i++) {
       await pause((ms, fn) => this.later(ms, fn), 150);
       if (done()) return true;
       try {
         await exec("herdr-app", ["do", "terminal.keep", JSON.stringify({ terminal, place })]);
-      } catch {}
+        lastErr = undefined;
+      } catch (err) {
+        // Expected while the core is still applying an earlier change; the
+        // loop retries. Only a run of failures, below, is a real failure.
+        lastErr = err;
+      }
       await pause((ms, fn) => this.later(ms, fn), 300);
       if (done()) return true;
     }
+    report("Could not keep a terminal in its new place", lastErr);
     return false;
   }
 

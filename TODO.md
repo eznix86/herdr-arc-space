@@ -15,9 +15,9 @@ a push, and this file ticked.
   Two spaces with different hues can paint each other. Make it per instance and pass it down.
 - [x] **One tooltip module.** `tip.js` exists twice and has drifted: the sidebar copy takes a
   `muted` callback, the pane copy does not. Keep one implementation with `muted` optional.
-- [ ] **No swallowed errors.** `applyTheme` and `reopen.js` have empty `catch {}` blocks. Log and
+- [x] **No swallowed errors.** `applyTheme` and `reopen.js` have empty `catch {}` blocks. Log and
   notify instead, so a failed layout write is visible.
-- [ ] **Ignore generated files.** `.gitignore`: `jsconfig.json`, `*.d.ts`, `*.error`.
+- [x] **Ignore generated files.** `.gitignore`: `jsconfig.json`, `*.d.ts`, `*.error`.
 
 ## Phase 2, structure and tests
 

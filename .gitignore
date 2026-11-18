@@ -1,3 +1,6 @@
 .DS_Store
 *.swp
 .tick
+jsconfig.json
+*.d.ts
+*.error
