@@ -1,11 +1,8 @@
 import { View, div, svg, image } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input } from "gpui-base";
 import { spaces, panes, knownAgents, run, theme, props, closeOverlay, shared, setShared } from "herdr";
+import { OPEN, MODE, STEP, NEW_MENU_AGENTS, RECENT_PANES } from "./lib/state.js";
 
-const KNOWN = "new-menu.agents";
-const OPEN = "terminals-launcher.open";
-const MODE = "terminals-launcher.mode";
-const STEP = "terminals-launcher.step";
 const ROW = 48;
 const VISIBLE = 8;
 
@@ -57,7 +54,7 @@ export default class Launcher extends View {
     this.step = shared(STEP) ?? 0;
     const space = spaces().find((s) => s.active);
     this.where = space?.machine ?? "";
-    this.agents = shared(KNOWN)?.[this.where] ?? [];
+    this.agents = shared(NEW_MENU_AGENTS)?.[this.where] ?? [];
     this.filter = "";
     this.at = this.mode === "panes" && this.paneRows().length > 1 ? 1 : 0;
     this.input = InputState.new({ placeholder: this.mode === "panes" ? "Switch to a pane" : "Search tabs, panes or start something" });
@@ -72,7 +69,7 @@ export default class Launcher extends View {
     cx.spawn(async (cx) => {
       try {
         this.agents = await knownAgents({ on: space?.machine });
-        setShared(KNOWN, { ...shared(KNOWN), [this.where]: this.agents });
+        setShared(NEW_MENU_AGENTS, { ...shared(NEW_MENU_AGENTS), [this.where]: this.agents });
       } catch {}
       cx.notify();
     });
@@ -91,7 +88,7 @@ export default class Launcher extends View {
 
   paneRows() {
     const space = spaces().find((s) => s.active);
-    const recent = shared("arc-space.recent-panes") ?? [];
+    const recent = shared(RECENT_PANES) ?? [];
     const rank = (p) => {
       const i = recent.indexOf(p.pane);
       return i < 0 ? 1e6 : i;

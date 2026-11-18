@@ -1,10 +1,14 @@
-import { View, div, svg, image } from "gpui-kit";
+import { View, div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
-import { spaces, panes, run, theme, home, appHome, openOverlay, nextCommand, checking, settings, shared, setShared, props, readTextFile, closeOverlay, exec, notify, window as win } from "herdr";
+import { spaces, panes, run, theme, appHome, openOverlay, nextCommand, checking, settings, shared, setShared, props, readTextFile, closeOverlay, exec, notify, window as win } from "herdr";
 import { Picker } from "./picker.js";
 import { Tips } from "./tip.js";
 import { snapshot, recordClosed, reopenLast } from "./reopen.js";
 import { themeFor, palette, apply, backgrounds, find } from "./theme.js";
+import { JOB, MENU_OPEN, COLLAPSED, WIDTH, RECENT_PANES, LAUNCHER_OPEN, LAUNCHER_MODE, LAUNCHER_STEP, LAYOUT } from "./lib/state.js";
+import { tabMenu, spaceMenu, tabMenuView, tabPickView, menuView, editTheme, closeTab } from "./views/menu.js";
+import { folder, lead, label, paneLabel, tile, badge, own, windowButton, iconButton, row } from "./views/rows.js";
+import { JobQueue } from "./lib/jobqueue.js";
 
 // A failure the person can see: the log always gets the error, the toast does
 // not repeat itself. Same body at most every 30 s, so a failing loop (a theme
@@ -19,107 +23,6 @@ function report(body, err) {
   lastNotice = body;
   lastNoticeAt = now;
   notify({ title: "Arc Space", body, level: "error", timeout: 4000 });
-}
-
-function folder(cwd) {
-  if (!cwd) return "";
-  const h = home();
-  return cwd === h ? "~" : cwd.startsWith(h + "/") ? "~" + cwd.slice(h.length) : cwd;
-}
-
-function lead(mine) {
-  return mine.find((p) => p.focused) ?? mine.find((p) => p.program?.agent) ?? mine[0];
-}
-
-const clean = (s) => (s ?? "").replace(/^[^\p{L}\p{N}\p{Ps}\p{Pi}]+/u, "").replace(/^\[ [!.] \] /, "").trim();
-
-function liveTitle(p) {
-  if (!p?.program?.agent) return "";
-  const live = clean(p.title);
-  const path = /^[~/]|^[A-Za-z]:\\/.test((p.title ?? "").replace(/^[^\p{L}\p{N}~/]+/u, ""));
-  const telling = live && live !== p.terminal && live !== p.program.name && !path && !live.includes("@") && live.toLowerCase() !== p.program.key;
-  return telling ? live : "";
-}
-
-function label(tab, p) {
-  const prog = p?.program?.name;
-  const base = tab.named ? tab.name : prog ?? "Terminal";
-  const live = liveTitle(p);
-  return (tab.name === prog || !tab.named) && live ? live : base;
-}
-
-function paneLabel(p) {
-  if (!p.terminal) return p.title;
-  return liveTitle(p) || p.program?.name || folder(p.cwd).split("/").pop() || "Terminal";
-}
-
-function tile(t, p, C) {
-  const g = p?.program;
-  const dot = p?.status && p.status !== "idle" ? t[p.status] : null;
-  return div()
-    .relative()
-    .flex_none()
-    .w(20)
-    .h(20)
-    .rounded(5)
-    .bg(g?.tile ?? C.chip)
-    .flex()
-    .items_center()
-    .justify_center()
-    .when(Boolean(g?.icon), (el) =>
-      el.child(g.tint ? svg(g.icon).size(12).text_color(g.color ?? C.text) : image(g.icon).w(12).h(12)),
-    )
-    .when(Boolean(dot), (el) =>
-      el.child(div().absolute().top(-3).right(-3).w(9).h(9).rounded_full().border_2().border_color(C.dot).bg(dot)),
-    );
-}
-
-function badge(n, C) {
-  return div()
-    .flex_none()
-    .px(5)
-    .h(18)
-    .rounded(5)
-    .bg(C.rule)
-    .flex()
-    .items_center()
-    .text_size(11)
-    .text_color(C.text)
-    .child(`⌘${n}`);
-}
-
-function own(el) {
-  return el.on_mouse_down("left", (_e, cx) => cx.stop_propagation()).on_mouse_down("right", (_e, cx) => cx.stop_propagation());
-}
-
-function windowButton(id, icon, command, C) {
-  return own(div())
-    .id(id)
-    .flex_none()
-    .w(24)
-    .h(24)
-    .rounded_full()
-    .flex()
-    .items_center()
-    .justify_center()
-    .text_color(C.dim)
-    .cursor_pointer()
-    .hover((s) => s.bg(C.hover).text_color(C.text))
-    .on_click(() => run(command))
-    .child(svg(`mods/arc-space/${icon}.svg`).size(14));
-}
-
-function iconButton(id, icon, onClick, C) {
-  return own(div())
-    .id(id)
-    .flex_none()
-    .p(6)
-    .rounded(7)
-    .text_color(C.dim)
-    .cursor_pointer()
-    .hover((s) => s.bg(C.hover).text_color(C.text))
-    .on_click(onClick)
-    .child(svg(`mods/arc-space/${icon}.svg`).size(16));
 }
 
 function closeButton(id, command, args, C) {
@@ -143,202 +46,30 @@ const PUSH_STEPS = 11;
 const FAST = 130;
 const STEP = 14;
 
-function tabMenu(tab, space, pane) {
-  const split = panes().filter((q) => q.tab === tab).length > 1;
-  const rows = split ? (pane ? 3 : 2) : 3;
-  openOverlay({ mod: "arc-space", kind: "popup", width: 230, height: 22 + rows * 35 + 9, frame: "none", props: { view: "tab-menu", tab, space, pane, split } });
-}
-
-function job(spec) {
-  setShared("arc-space.job", spec);
-  run("arc-space.job");
-}
-
-function menuPanel(items, C) {
-  return v_flex().id("ctx-menu").w_full().p(6).gap(1).rounded(12).border_1().border_color(C.edge).bg(C.panel).shadow_lg().children(items);
-}
-
-function menuItem(overlay, id, label, action, danger, C) {
-  return div()
-    .id(`mn-${id}`)
-    .h(34)
-    .px(12)
-    .flex()
-    .items_center()
-    .rounded(8)
-    .cursor_pointer()
-    .text_size(13.5)
-    .text_color(danger ? "#ff8a80" : C.text)
-    .hover((s) => s.bg(C.hover).text_color(C.text))
-    .on_click(() => {
-      closeOverlay(overlay);
-      action();
-    })
-    .child(label);
-}
-
-function rule(C) {
-  return div().h(1).mx(8).my(4).bg(C.edge);
-}
-
-function tabMenuView() {
-  const { tab, space, pane, split, overlay } = props();
-  const C = palette(themeFor(space));
-  const items = split
-    ? [menuItem(overlay, "separate", "Separate All Tabs", () => job({ kind: "separate", tab }), false, C)]
-    : [
-        menuItem(overlay, "add-split", "Add Split Terminal\u2026", () =>
-          openOverlay({ mod: "arc-space", kind: "popup", width: 280, height: 360, frame: "none", props: { view: "tab-pick", tab, space } }), false, C,
-        ),
-        menuItem(overlay, "rename", "Rename Tab\u2026", () => run("tab.rename", { id: tab }), false, C),
-      ];
-  items.push(rule(C));
-  if (split && pane) items.push(menuItem(overlay, "close-pane", "Close Pane", () => run("pane.close", { pane }), true, C));
-  items.push(menuItem(overlay, "close-tab", "Close Tab", () => closeTab(tab, space), true, C));
-  return menuPanel(items, C);
-}
-
-function tabPickView() {
-  const { tab, space, overlay } = props();
-  const t = theme();
-  const C = palette(themeFor(space));
-  const all = panes();
-  const others = (spaces().find((p) => p.id === space)?.tabs ?? []).filter((c) => c.id !== tab);
-  const rows = others.map((c) => {
-    const mine = all.filter((q) => q.tab === c.id);
-    const p = lead(mine);
-    return div()
-      .id(`pick-${c.id}`)
-      .h(38)
-      .px(10)
-      .flex()
-      .gap(10)
-      .items_center()
-      .rounded(8)
-      .cursor_pointer()
-      .text_size(13.5)
-      .text_color(C.text)
-      .hover((s) => s.bg(C.hover).text_color(C.text))
-      .on_click(() => {
-        closeOverlay(overlay);
-        job({ kind: "merge", into: tab, from: c.id });
-      })
-      .child(tile(t, p, C))
-      .child(div().flex_1().min_w(0).truncate().child(label(c, p)))
-      .when(mine.length > 1, (el) => el.child(div().text_size(11.5).text_color(C.dim).child(`${mine.length} panes`)));
-  });
-  return menuPanel([
-    div().px(12).pt(6).pb(4).text_size(11).font_semibold().text_color(C.dim).child("SPLIT WITH"),
-    ...(rows.length ? rows : [div().px(12).py(8).text_size(13).text_color(C.dim).child("No other tabs in this space")]),
-  ], C);
-}
-
 const pause = (later, ms) => new Promise((done) => later(ms, done));
-
-function spaceMenu(spaceId) {
-  openOverlay({ mod: "arc-space", kind: "popup", width: 230, height: 172, frame: "none", props: { view: "menu", space: spaceId } });
-}
-
-function menuView() {
-  const { space, overlay } = props();
-  const C = palette(themeFor(space));
-  const item = (id, label, action, danger) =>
-    div()
-      .id(`mn-${id}`)
-      .h(34)
-      .px(12)
-      .flex()
-      .items_center()
-      .rounded(8)
-      .cursor_pointer()
-      .text_size(13.5)
-      .text_color(danger ? "#ff8a80" : C.text)
-      .hover((s) => s.bg(C.hover).text_color(C.text))
-      .on_click(() => {
-        closeOverlay(overlay);
-        action();
-      })
-      .child(label);
-  return v_flex()
-    .id("space-menu")
-    .w_full()
-    .p(6)
-    .gap(1)
-    .rounded(12)
-    .border_1()
-    .border_color(C.edge)
-    .bg(C.panel)
-    .shadow_lg()
-    .child(item("theme", "Edit Theme Color\u2026", () => editTheme(space)))
-    .child(item("rename", "Rename Space\u2026", () => run("space.rename", { id: space })))
-    .child(item("tab", "New Tab", () => run("tab.new", { space })))
-    .child(div().h(1).mx(8).my(4).bg(C.edge))
-    .child(item("close", "Close Space", () => confirmCloseSpace(space), true));
-}
-
-function confirm(title, detail, label, command) {
-  openOverlay({ mod: "arc-space-confirm", kind: "dialog", frame: "none", width: 400, height: 170, props: { title, detail, confirm: label, command } });
-}
-
-function confirmCloseSpace(spaceId) {
-  const s = spaces().find((p) => p.id === spaceId);
-  const n = s?.tabs.length ?? 0;
-  confirm(
-    `Close “${s?.name ?? "this space"}”?`,
-    `Its ${n === 1 ? "tab" : `${n} tabs`} and every terminal in ${n === 1 ? "it" : "them"} will end.`,
-    "Close Space",
-    { name: "space.close", args: { id: spaceId, confirmed: true } },
-  );
-}
-
-function closeTab(tabId, spaceId) {
-  const s = spaces().find((p) => p.id === spaceId);
-  if (s && s.tabs.length <= 1) confirmCloseSpace(spaceId);
-  else run("tab.close", { id: tabId, confirmed: true });
-}
-
-function editTheme(spaceId) {
-  openOverlay({ mod: "arc-space", kind: "popup", width: 376, height: 600, frame: "none", props: { view: "theme", space: spaceId } });
-}
 
 function openPalette() {
   openOverlay({ mod: "terminals-palette", kind: "dialog", frame: "none", width: 640, height: 520 });
 }
 
 function launch() {
-  const open = shared("terminals-launcher.open");
+  const open = shared(LAUNCHER_OPEN);
   if (open) {
     closeOverlay(open);
-    setShared("terminals-launcher.open", null);
+    setShared(LAUNCHER_OPEN, null);
     return;
   }
   openOverlay({ mod: "terminals-launcher", kind: "dialog", frame: "none", width: 720, height: 500 });
 }
 
 function switchPanes() {
-  const open = shared("terminals-launcher.open");
-  if (open && shared("terminals-launcher.mode") === "panes") {
-    setShared("terminals-launcher.step", (shared("terminals-launcher.step") ?? 0) + 1);
+  const open = shared(LAUNCHER_OPEN);
+  if (open && shared(LAUNCHER_MODE) === "panes") {
+    setShared(LAUNCHER_STEP, (shared(LAUNCHER_STEP) ?? 0) + 1);
     return;
   }
   if (open) closeOverlay(open);
   openOverlay({ mod: "terminals-launcher", kind: "dialog", frame: "none", width: 720, height: 500, props: { mode: "panes" } });
-}
-
-function row(id, C) {
-  return own(h_flex())
-    .id(id)
-    .flex_none()
-    .w_full()
-    .min_w(0)
-    .h(38)
-    .px(10)
-    .gap(10)
-    .items_center()
-    .rounded(10)
-    .cursor_pointer()
-    .text_size(13)
-    .active((s) => s.bg(C.pressed).shadow_none().pt(2));
 }
 
 export default class TerminalsSide extends View {
@@ -349,12 +80,12 @@ export default class TerminalsSide extends View {
     }
     if (props()?.view === "menu") {
       this.menu = true;
-      setShared("arc-space.menu-open", props().overlay);
+      setShared(MENU_OPEN, props().overlay);
       return;
     }
     if (props()?.view === "tab-menu" || props()?.view === "tab-pick") {
       this.view = props().view;
-      setShared("arc-space.menu-open", props().overlay);
+      setShared(MENU_OPEN, props().overlay);
       return;
     }
     this.cmd = false;
@@ -368,26 +99,11 @@ export default class TerminalsSide extends View {
     this.entering = new Set();
     this.enteringAt = 0;
     this.ghosts = [];
-    this.jobs = [];
-    this.tips = new Tips((ms, fn) => this.later(ms, fn), () => Boolean(shared("arc-space.menu-open")));
-    this.out = Boolean(shared("arc-space.collapsed"));
+    this.jobs = new JobQueue();
+    this.tips = new Tips((ms, fn) => this.later(ms, fn), () => Boolean(shared(MENU_OPEN)));
+    this.out = Boolean(shared(COLLAPSED));
     if (checking()) return;
-    // Drain jobs immediately when any are pending, then wait. Dropping the
-    // resolver before the loop re-arms keeps a `later()` that lands mid-drain
-    // from calling a dead wake(): it would strand its job (and the render it
-    // was meant to fix) forever.
-    cx.spawn(async (cx) => {
-      for (;;) {
-        if (!this.jobs.length) await new Promise((wake) => (this.wake = wake));
-        this.wake = null;
-        for (const job of this.jobs.splice(0)) {
-          cx.timer.after(job.ms, (cx) => {
-            job.fn();
-            cx.notify();
-          });
-        }
-      }
-    });
+    this.jobs.start(cx);
     cx.timer.every(1500, () => this.watchClosed());
     cx.spawn(async () => {
       for (;;) {
@@ -399,7 +115,7 @@ export default class TerminalsSide extends View {
             report("The arc-space layout has no tint block; the theme was not applied");
             continue;
           }
-          run("layout.set", { layout: apply(tree, th, shared("arc-space.collapsed") ? 0 : this.full()) });
+          run("layout.set", { layout: apply(tree, th, shared(COLLAPSED) ? 0 : this.full()) });
         } catch (err) {
           report("Could not apply the theme to the layout", err);
         }
@@ -420,7 +136,7 @@ export default class TerminalsSide extends View {
               report("Could not reopen the last tab", err);
             }
           });
-        else if (c === "job") this.runJob(cx, shared("arc-space.job"));
+        else if (c === "job") this.runJob(cx, shared(JOB));
 
         else if (c === "theme") editTheme(spaces().find((p) => p.active)?.id);
         else if (/^tab[1-9]$/.test(c)) this.selectTab(Number(c.slice(3)));
@@ -529,22 +245,22 @@ export default class TerminalsSide extends View {
   }
 
   full() {
-    return shared("arc-space.width") ?? 240;
+    return shared(WIDTH) ?? 240;
   }
 
   toggle(cx) {
-    const collapsed = Boolean(shared("arc-space.collapsed"));
+    const collapsed = Boolean(shared(COLLAPSED));
     const full = this.full();
     const [from, to] = collapsed ? [0, full] : [full, 0];
     const anim = ++this.anim;
-    if (collapsed) setShared("arc-space.collapsed", false);
+    if (collapsed) setShared(COLLAPSED, false);
     for (let i = 1; i <= PUSH_STEPS; i++) {
       cx.timer.after(i * 16, () => {
         if (this.anim !== anim) return;
         const k = i / PUSH_STEPS;
         const e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
         run("layout.resize", { id: "sidebar", px: Math.round(from + (to - from) * e) });
-        if (i === PUSH_STEPS && !collapsed) setShared("arc-space.collapsed", true);
+        if (i === PUSH_STEPS && !collapsed) setShared(COLLAPSED, true);
       });
     }
   }
@@ -571,7 +287,7 @@ export default class TerminalsSide extends View {
 
   runJob(cx, spec) {
     if (!spec) return;
-    setShared("arc-space.job", null);
+    setShared(JOB, null);
     cx.spawn(async () => {
       if (spec.kind === "separate") {
         const rest = panes().filter((q) => q.tab === spec.tab && q.terminal).slice(1);
@@ -625,8 +341,7 @@ export default class TerminalsSide extends View {
   }
 
   later(ms, fn) {
-    this.jobs.push({ ms, fn });
-    if (this.wake) this.wake();
+    this.jobs.later(ms, fn);
   }
 
   track(space, cx) {
@@ -754,7 +469,7 @@ export default class TerminalsSide extends View {
   }
 
   applyTheme(th) {
-    if (shared("layout") !== "arc-space" || !this.themeWake) return;
+    if (shared(LAYOUT) !== "arc-space" || !this.themeWake) return;
     const key = JSON.stringify(backgrounds(th));
     if (key === this.applied) return;
     this.applied = key;
@@ -764,7 +479,7 @@ export default class TerminalsSide extends View {
 
   async close() {
     this.picker?.close();
-    if ((this.menu || this.view) && shared("arc-space.menu-open") === props()?.overlay) setShared("arc-space.menu-open", null);
+    if ((this.menu || this.view) && shared(MENU_OPEN) === props()?.overlay) setShared(MENU_OPEN, null);
   }
 
   render(cx) {
@@ -777,8 +492,8 @@ export default class TerminalsSide extends View {
     if (!space) return div();
     const th = themeFor(space.id);
     const now = panes().find((q) => q.focused && space.tabs.some((c) => c.active && c.id === q.tab))?.pane;
-    const recent = shared("arc-space.recent-panes") ?? [];
-    if (now && recent[0] !== now) setShared("arc-space.recent-panes", [now, ...recent.filter((id) => id !== now)].slice(0, 50));
+    const recent = shared(RECENT_PANES) ?? [];
+    if (now && recent[0] !== now) setShared(RECENT_PANES, [now, ...recent.filter((id) => id !== now)].slice(0, 50));
     this.C = palette(th);
     const C = this.C;
     this.applyTheme(th);

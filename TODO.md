@@ -21,11 +21,11 @@ a push, and this file ticked.
 
 ## Phase 2, structure and tests
 
-- [ ] **`lib/state.js`.** One exported constant per shared-state key, replacing string literals in
+- [x] **`lib/state.js`.** One exported constant per shared-state key, replacing string literals in
   `arc-space`, `terminals-launcher` and `reopen.js`.
-- [ ] **`views/menu.js`.** Move `tabMenu`, `spaceMenu`, `menuPanel` and `menuItem` out of
+- [x] **`views/menu.js`.** Move `tabMenu`, `spaceMenu`, `menuPanel` and `menuItem` out of
   `main.js`.
-- [ ] **`lib/herdr.js`, `lib/jobqueue.js`.** Extract the `exec("herdr-app", ...)` helper and the
+- [x] **`lib/herdr.js`, `lib/jobqueue.js`.** Extract the `exec("herdr-app", ...)` helper and the
   job pump. Target: `main.js` under 300 lines.
 - [ ] **Tests.** `node --test` over the pure modules: `hexToHsl`, `contrast`, `palette`,
   `backgrounds` (including the 0.02 grain threshold) and the shared-key names.

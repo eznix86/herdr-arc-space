@@ -1,6 +1,6 @@
 import { shared, setShared, settings, theme as ui } from "herdr";
+import { THEMES } from "./lib/state.js";
 
-export const KEY = "arc-space.themes";
 export const PRESET_SETS = [
   ["#fdfbfb", "#f6e6ef", "#e8d3ea", "#f3c9cf", "#f7dfd2", "#fdf5df", "#ddf5e2", "#ddeef6", "#c2c6e2"],
   ["#f1ece6", "#e8a0bf", "#9b72a0", "#e05d6a", "#f08a5d", "#f2d264", "#6ee59a", "#7ab8d9", "#61637f"],
@@ -67,14 +67,14 @@ export function dotHex(dot) {
 }
 
 export function themeFor(spaceId) {
-  const t = (shared(KEY) ?? {})[spaceId];
+  const t = (shared(THEMES) ?? {})[spaceId];
   if (!t) return DEFAULT;
   const dots = (t.dots ?? []).map((d) => (d.r === undefined ? { h: d.h, r: clamp((L_TOP - d.l) / (L_TOP - L_BOTTOM), 0, 1) } : d));
   return { ...DEFAULT, ...t, dots };
 }
 
 export function saveTheme(spaceId, theme) {
-  setShared(KEY, { ...(shared(KEY) ?? {}), [spaceId]: theme });
+  setShared(THEMES, { ...(shared(THEMES) ?? {}), [spaceId]: theme });
 }
 
 export function isDark(theme) {

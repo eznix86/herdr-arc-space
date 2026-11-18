@@ -1,6 +1,7 @@
 import { spaces, panes, terminals, exec, shared, setShared } from "herdr";
+import { herdr } from "./lib/herdr.js";
+import { CLOSED } from "./lib/state.js";
 
-const CLOSED = "arc-space.closed";
 const KEEP = 20;
 
 const RESUME = [
@@ -71,11 +72,6 @@ async function argvFor(pane) {
   if (!pane.agent) return null;
   const rule = RESUME.find((r) => r.match.test(pane.who));
   return (await resumeArgv(pane)) ?? (rule ? [rule.argv[0]] : null);
-}
-
-async function herdr(command, args) {
-  const r = await exec("herdr-app", ["do", command, JSON.stringify(args)]);
-  return JSON.parse(r.stdout);
 }
 
 export async function reopenLast() {
